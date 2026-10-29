@@ -14,12 +14,18 @@ class VariableRevealController extends Controller
     {
         Gate::authorize('reveal', $variable);
 
+        $data = $request->validate(['field' => ['nullable', 'in:default,value']]);
+
         SecretReveal::create([
             'user_id' => $request->user()->id,
             'variable_id' => $variable->id,
             'key' => $variable->key,
         ]);
 
-        return response()->json(['value' => $variable->effectiveValue()]);
+        $field = $data['field'] ?? null;
+
+        return response()->json([
+            'value' => $field === null ? $variable->effectiveValue() : $variable->{$field},
+        ]);
     }
 }

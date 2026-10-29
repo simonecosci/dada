@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Deployment extends Model
 {
@@ -14,6 +15,11 @@ class Deployment extends Model
     use HasFactory;
 
     protected $guarded = [];
+
+    public function hosts(): HasMany
+    {
+        return $this->hasMany(DeploymentHost::class);
+    }
 
     public function members(): BelongsToMany
     {

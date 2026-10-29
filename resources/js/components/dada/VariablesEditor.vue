@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import SecretValue from '@/components/dada/SecretValue.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import SecretValue from "@/components/dada/SecretValue.vue";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
     newVariableRow,
     type VariableRow,
     type VariableScope,
-} from '@/lib/variables';
+} from "@/lib/variables";
 
 const props = withDefaults(
     defineProps<{
         modelValue: VariableRow[];
-        mode: 'catalog' | 'installation' | 'host';
+        mode: "catalog" | "installation" | "host";
         canReveal: boolean;
         readonly?: boolean;
         errors?: Record<string, string>;
@@ -19,14 +19,14 @@ const props = withDefaults(
     { readonly: false, errors: () => ({}) },
 );
 
-const emit = defineEmits<{ 'update:modelValue': [value: VariableRow[]] }>();
+const emit = defineEmits<{ "update:modelValue": [value: VariableRow[]] }>();
 
-const scopes: VariableScope[] = ['container', 'compose', 'host-global'];
-const structural = props.mode !== 'installation';
+const scopes: VariableScope[] = ["container", "compose", "host-global"];
+const structural = props.mode !== "installation";
 
 function update(index: number, patch: Partial<VariableRow>) {
     emit(
-        'update:modelValue',
+        "update:modelValue",
         props.modelValue.map((row, i) =>
             i === index ? { ...row, ...patch } : row,
         ),
@@ -34,28 +34,28 @@ function update(index: number, patch: Partial<VariableRow>) {
 }
 
 /** Un campo vuoto equivale a "non toccato" (null): per un segreto esistente il valore resta invariato. */
-function setField(index: number, field: 'default' | 'value', raw: string) {
-    update(index, { [field]: raw === '' ? null : raw });
+function setField(index: number, field: "default" | "value", raw: string) {
+    update(index, { [field]: raw === "" ? null : raw });
 }
 
 function add() {
-    emit('update:modelValue', [
+    emit("update:modelValue", [
         ...props.modelValue,
-        newVariableRow(props.mode === 'host' ? 'host-global' : 'container'),
+        newVariableRow(props.mode === "host" ? "host-global" : "container"),
     ]);
 }
 
 function remove(index: number) {
     emit(
-        'update:modelValue',
+        "update:modelValue",
         props.modelValue.filter((_, i) => i !== index),
     );
 }
 
-function placeholder(row: VariableRow, field: 'default' | 'value') {
-    const has = field === 'default' ? row.has_default : row.has_value;
+function placeholder(row: VariableRow, field: "default" | "value") {
+    const has = field === "default" ? row.has_default : row.has_value;
 
-    return row.secret && row.id && has ? 'Lascia vuoto per non cambiare' : '';
+    return row.secret && row.id && has ? "Lascia vuoto per non cambiare" : "";
 }
 
 function error(index: number, field: string) {
@@ -80,7 +80,7 @@ function error(index: number, field: string) {
                     @update:model-value="update(i, { key: String($event) })"
                 />
                 <p v-if="error(i, 'key')" class="text-sm text-red-600">
-                    {{ error(i, 'key') }}
+                    {{ error(i, "key") }}
                 </p>
             </div>
 
@@ -102,7 +102,7 @@ function error(index: number, field: string) {
                     </option>
                 </select>
                 <p v-if="error(i, 'scope')" class="text-sm text-red-600">
-                    {{ error(i, 'scope') }}
+                    {{ error(i, "scope") }}
                 </p>
             </div>
 
@@ -149,8 +149,11 @@ function error(index: number, field: string) {
                 </label>
             </div>
 
-            <!-- Valore di default (catalogo) oppure default in sola lettura + valore (installazione) -->
-            <div v-if="mode === 'catalog'" class="grid gap-1 md:col-span-2">
+            <!-- Default modificabile (catalogo, host) oppure default in sola lettura + valore (installazione) -->
+            <div
+                v-if="mode === 'catalog' || mode === 'host'"
+                class="grid gap-1 md:col-span-2"
+            >
                 <label class="text-xs font-medium">Default</label>
                 <Input
                     :model-value="row.default ?? ''"
@@ -170,22 +173,28 @@ function error(index: number, field: string) {
             <template v-else>
                 <div class="grid gap-1">
                     <label class="text-xs font-medium">Default</label>
-                    <template v-if="mode === 'installation'">
-                        <SecretValue
-                            v-if="row.secret && row.id && row.has_default"
-                            :variable-id="row.id"
-                            field="default"
-                        />
-                        <code
-                            v-else
-                            class="rounded bg-muted px-2 py-1 text-xs break-all"
-                        >
-                            {{ row.default ?? '—' }}
-                        </code>
-                    </template>
+                    <SecretValue
+                        v-if="
+                            canReveal && row.secret && row.id && row.has_default
+                        "
+                        :variable-id="row.id"
+                        field="default"
+                    />
+                    <code
+                        v-else
+                        class="rounded bg-muted px-2 py-1 text-xs break-all"
+                    >
+                        {{
+                            row.secret
+                                ? row.has_default
+                                    ? "••••••••"
+                                    : "—"
+                                : (row.default ?? "—")
+                        }}
+                    </code>
                 </div>
 
-                <div v-if="mode === 'installation'" class="grid gap-1">
+                <div class="grid gap-1">
                     <label class="flex items-center gap-2 text-sm">
                         <input
                             type="checkbox"
@@ -203,10 +212,7 @@ function error(index: number, field: string) {
                     </label>
                 </div>
 
-                <div
-                    v-if="mode === 'host' || !row.use_default"
-                    class="grid gap-1 md:col-span-2"
-                >
+                <div v-if="!row.use_default" class="grid gap-1 md:col-span-2">
                     <label class="text-xs font-medium">Valore</label>
                     <Input
                         :model-value="row.value ?? ''"

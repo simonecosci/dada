@@ -9,6 +9,7 @@ use App\Catalog\VersionCloner;
 use App\Catalog\VersionPublisher;
 use App\Enums\VersionStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Installation;
 use App\Models\Project;
 use App\Models\ProjectVersion;
 use App\Variables\VariableData;
@@ -150,6 +151,10 @@ class ProjectVersionController extends Controller
 
         if ($version->isPublished()) {
             throw ValidationException::withMessages(['version' => 'Una versione pubblicata non può essere cancellata.']);
+        }
+
+        if (Installation::where('project_version_id', $version->id)->exists()) {
+            throw ValidationException::withMessages(['version' => 'La versione è installata su uno o più host e non può essere cancellata.']);
         }
 
         $project = $version->project;

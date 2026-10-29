@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Infrastructure\JumpChain;
 use App\Jobs\HostCheckJob;
 use App\Models\Credential;
+use App\Models\DeploymentHost;
 use App\Models\Host;
 use App\Ssh\HostKeyFingerprint;
 use Closure;
@@ -93,6 +94,12 @@ class HostController extends Controller
         if (Host::where('jump_host_id', $host->id)->exists()) {
             throw ValidationException::withMessages([
                 'host' => 'L\'host è usato come jump host da altri host.',
+            ]);
+        }
+
+        if (DeploymentHost::where('host_id', $host->id)->exists()) {
+            throw ValidationException::withMessages([
+                'host' => 'L\'host è usato da uno o più deployment.',
             ]);
         }
 

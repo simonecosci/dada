@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Credential;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -77,6 +78,12 @@ class CredentialController extends Controller
         if ($credential->hosts()->exists()) {
             throw ValidationException::withMessages([
                 'credential' => 'La credenziale è usata da uno o più host.',
+            ]);
+        }
+
+        if (DB::table('deployment_host_registry')->where('credential_id', $credential->id)->exists()) {
+            throw ValidationException::withMessages([
+                'credential' => 'La credenziale è usata come registry da uno o più host di deployment.',
             ]);
         }
 

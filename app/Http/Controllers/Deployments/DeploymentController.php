@@ -68,6 +68,17 @@ class DeploymentController extends Controller
             'candidates' => $canManageMembers
                 ? User::whereNotIn('id', $members->modelKeys())->orderBy('name')->get(['id', 'name', 'email'])
                 : [],
+            'hosts' => $request->user()->can('operate', $deployment)
+                ? $deployment->hosts()->with('host:id,name,hostname')->withCount('installations')->orderBy('id')->get()->map(fn ($dh) => [
+                    'id' => $dh->id,
+                    'name' => $dh->host->name,
+                    'hostname' => $dh->host->hostname,
+                    'path' => $dh->path,
+                    'orchestrator' => $dh->orchestrator->value,
+                    'installations_count' => $dh->installations_count,
+                ])->values()
+                : [],
+            'canOperate' => $request->user()->can('operate', $deployment),
             'canUpdate' => $request->user()->can('update', $deployment),
             'canDelete' => $request->user()->can('delete', $deployment),
             'canManageMembers' => $canManageMembers,
@@ -96,7 +107,11 @@ class DeploymentController extends Controller
     {
         Gate::authorize('delete', $deployment);
 
-        $deployment->delete();
+        // Passa da Eloquent, così gli hook di HasVariables rimuovono anche le variabili.
+        DB::transaction(function () use ($deployment): void {
+            $deployment->hosts()->get()->each->delete();
+            $deployment->delete();
+        });
 
         return to_route('deployments.index');
     }

@@ -25,12 +25,10 @@ it('executes commands, uploads files and records the host key', function () {
     try {
         $result = $shell->exec('echo hi');
         expect($result->exitCode)->toBe(0)->and(trim($result->output))->toBe('hi')
-            ->and($result->stdout)->toBe('hi
-');
+            ->and($result->stdout)->toBe("hi\n");
 
         $mixed = $shell->exec('echo out; echo err >&2');
-        expect($mixed->stdout)->toBe('out
-')->and($mixed->output)->toContain('err');
+        expect($mixed->stdout)->toBe("out\n")->and($mixed->output)->toContain('err');
 
         $shell->put('/tmp/dada-it.txt', 'x', 0600);
         expect(trim($shell->exec('stat -c %a /tmp/dada-it.txt')->output))->toBe('600');

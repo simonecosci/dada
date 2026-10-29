@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\CredentialType;
 use App\Http\Controllers\Controller;
 use App\Infrastructure\JumpChain;
+use App\Jobs\HostCheckJob;
 use App\Models\Credential;
 use App\Models\Host;
+use App\Ssh\HostKeyFingerprint;
 use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,6 +16,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
 
 class HostController extends Controller
 {
@@ -59,6 +62,7 @@ class HostController extends Controller
                 'credential' => $host->credential,
                 'jump_host' => $host->jumpHost,
                 'has_host_key' => filled($host->host_key),
+                'host_key_fingerprints' => $this->fingerprints($host),
             ],
         ]);
     }
@@ -95,6 +99,46 @@ class HostController extends Controller
         $host->delete();
 
         return to_route('admin.hosts.index');
+    }
+
+    public function check(Host $host): RedirectResponse
+    {
+        Gate::authorize('update', $host);
+
+        HostCheckJob::dispatch($host->id);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Verifica dell\'host avviata.']);
+
+        return back();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function fingerprints(Host $host): array
+    {
+        $fingerprints = [];
+
+        foreach (preg_split('/\R/', (string) $host->host_key, flags: PREG_SPLIT_NO_EMPTY) as $line) {
+            try {
+                $fingerprints[] = HostKeyFingerprint::sha256($line);
+            } catch (InvalidArgumentException) {
+                // Riga non valida: non mostrata.
+            }
+        }
+
+        return $fingerprints;
+    }
+
+    public function resetKey(Host $host): RedirectResponse
+    {
+        Gate::authorize('update', $host);
+
+        $host->forceFill(['host_key' => null])->save();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Chiave host azzerata: verrà registrata al prossimo collegamento.']);
+
+        return back();
     }
 
     /**

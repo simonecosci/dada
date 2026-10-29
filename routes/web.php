@@ -15,6 +15,8 @@ Route::middleware(['auth', 'verified', 'can:admin'])->prefix('admin')->name('adm
     Route::resource('users', UserController::class)->except('show');
     Route::resource('credentials', CredentialController::class)->except('show');
     Route::resource('hosts', HostController::class);
+    Route::post('hosts/{host}/check', [HostController::class, 'check'])->name('hosts.check');
+    Route::post('hosts/{host}/reset-key', [HostController::class, 'resetKey'])->name('hosts.reset-key');
 });
 
 require __DIR__.'/settings.php';

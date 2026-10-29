@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import HostController from '@/actions/App/Http/Controllers/Admin/HostController';
-import Heading from '@/components/Heading.vue';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Head, Link, router } from "@inertiajs/vue3";
+import HostController from "@/actions/App/Http/Controllers/Admin/HostController";
+import Heading from "@/components/Heading.vue";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 type ShownHost = {
     id: number;
@@ -16,19 +16,42 @@ type ShownHost = {
     facts: Record<string, unknown> | null;
     checked_at: string | null;
     has_host_key: boolean;
+    host_key_fingerprints: string[];
     credential: { id: number; name: string; type: string } | null;
     jump_host: { id: number; name: string } | null;
 };
 
-defineProps<{
+const props = defineProps<{
     host: ShownHost;
 }>();
+
+function check() {
+    router.post(
+        HostController.check(props.host.id).url,
+        {},
+        { preserveScroll: true },
+    );
+}
+
+function resetKey() {
+    if (
+        confirm(
+            `Azzerare la chiave host di "${props.host.name}"? Verrà accettata la chiave presentata al prossimo collegamento.`,
+        )
+    ) {
+        router.post(
+            HostController.resetKey(props.host.id).url,
+            {},
+            { preserveScroll: true },
+        );
+    }
+}
 
 defineOptions({
     layout: {
         breadcrumbs: [
             {
-                title: 'Host',
+                title: "Host",
                 href: HostController.index(),
             },
         ],
@@ -55,25 +78,39 @@ defineOptions({
             <dd>{{ host.credential?.name }} ({{ host.credential?.type }})</dd>
 
             <dt class="text-muted-foreground">Jump host</dt>
-            <dd>{{ host.jump_host?.name ?? 'Nessuno' }}</dd>
+            <dd>{{ host.jump_host?.name ?? "Nessuno" }}</dd>
 
             <dt class="text-muted-foreground">Prefisso sudo</dt>
-            <dd>{{ host.sudo || 'Nessuno' }}</dd>
+            <dd>{{ host.sudo || "Nessuno" }}</dd>
 
             <dt class="text-muted-foreground">Raggiungibilità</dt>
             <dd>
                 <Badge v-if="host.reachable === true">Raggiungibile</Badge>
-                <Badge v-else-if="host.reachable === false" variant="destructive">
+                <Badge
+                    v-else-if="host.reachable === false"
+                    variant="destructive"
+                >
                     Non raggiungibile
                 </Badge>
                 <Badge v-else variant="secondary">Non verificato</Badge>
             </dd>
 
             <dt class="text-muted-foreground">Ultima verifica</dt>
-            <dd>{{ host.checked_at ?? 'Mai' }}</dd>
+            <dd>{{ host.checked_at ?? "Mai" }}</dd>
 
             <dt class="text-muted-foreground">Chiave host</dt>
-            <dd>{{ host.has_host_key ? 'Registrata' : 'Non registrata' }}</dd>
+            <dd>
+                <template v-if="host.has_host_key">
+                    Registrata
+                    <code
+                        v-for="fingerprint in host.host_key_fingerprints"
+                        :key="fingerprint"
+                        class="text-muted-foreground block font-mono text-xs break-all"
+                        >{{ fingerprint }}</code
+                    >
+                </template>
+                <template v-else>Non registrata</template>
+            </dd>
         </dl>
 
         <div>
@@ -81,13 +118,21 @@ defineOptions({
             <pre
                 v-if="host.facts"
                 class="bg-muted overflow-x-auto rounded-lg p-3 text-xs"
-                >{{ JSON.stringify(host.facts, null, 2) }}</pre
-            >
+                >{{ JSON.stringify(host.facts, null, 2) }}</pre>
             <p v-else class="text-muted-foreground text-sm">
                 Nessun dato raccolto.
             </p>
         </div>
 
-        <!-- Task 4: pulsanti "Verifica" e "Reset chiave host" -->
+        <div class="flex gap-2">
+            <Button @click="check">Verifica</Button>
+            <Button
+                v-if="host.has_host_key"
+                variant="outline"
+                @click="resetKey"
+            >
+                Reset chiave host
+            </Button>
+        </div>
     </div>
 </template>

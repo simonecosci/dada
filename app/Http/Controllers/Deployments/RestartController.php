@@ -16,10 +16,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class RestartController extends Controller
 {
     use DispatchesRuns;
+
+    private const BUSY = 'Esecuzione già in corso';
 
     public function __invoke(Request $request, DeploymentHost $deploymentHost): JsonResponse|RedirectResponse
     {
@@ -60,7 +63,7 @@ class RestartController extends Controller
             Deployment::query()->whereKey($deployment->id)->lockForUpdate()->first();
 
             if ($deployment->runs()->active()->exists()) {
-                return response()->json(['message' => 'Esecuzione già in corso'], 409);
+                return null;
             }
 
             return $deployment->runs()->create([
@@ -71,8 +74,15 @@ class RestartController extends Controller
             ]);
         });
 
-        if ($result instanceof JsonResponse) {
-            return $result;
+        if ($result === null) {
+            // RestartControls usa una visita Inertia: un JSON 409 aprirebbe il modale di risposta non valida.
+            if ($request->expectsJson()) {
+                return response()->json(['message' => self::BUSY], 409);
+            }
+
+            Inertia::flash('toast', ['type' => 'error', 'message' => self::BUSY]);
+
+            return back();
         }
 
         return $this->dispatchRun($request, $result, new RestartJob($result->id));

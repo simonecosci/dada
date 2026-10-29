@@ -174,3 +174,27 @@ it('stores a friendly error when the script is missing on the host', function ()
         ->and($host->error)->toBe("script non presente sull'host: esegui prima un deploy")
         ->and(DeployRun::sole()->logs()->where('level', 'output')->pluck('message')->implode("\n"))->toContain('not found')->not->toContain('pw-123');
 });
+
+it('redirects back with an error toast on 409 for Inertia requests', function () {
+    Queue::fake();
+    $dh = hostWithWordpress();
+    DeployRun::factory()->for($dh->deployment)->create(['status' => 'running']);
+    $back = "/deployments/{$dh->deployment_id}/hosts/{$dh->id}";
+
+    $this->actingAs(operatorOf($dh->deployment))->from($back)
+        ->post("/deployment-hosts/{$dh->id}/restart", ['action' => 'start'], ['X-Inertia' => 'true'])
+        ->assertRedirect($back)
+        ->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'Esecuzione già in corso']);
+    Queue::assertNothingPushed();
+});
+
+it('returns validation errors to the page for Inertia requests', function () {
+    Queue::fake();
+    $dh = hostWithWordpress();
+    $back = "/deployments/{$dh->deployment_id}/hosts/{$dh->id}";
+
+    $this->actingAs(operatorOf($dh->deployment))->from($back)
+        ->post("/deployment-hosts/{$dh->id}/restart", ['action' => 'start', 'installation_slug' => 'wp', 'service' => 'nope'], ['X-Inertia' => 'true'])
+        ->assertRedirect($back)
+        ->assertSessionHasErrors(['service' => 'Servizio non presente in questa installazione.']);
+});

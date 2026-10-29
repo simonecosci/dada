@@ -13,6 +13,7 @@ const props = defineProps<{
 }>();
 
 const processing = ref(false);
+const error = ref<string | null>(null);
 
 const labels: Record<Action, string> = {
     start: 'Avvia',
@@ -43,7 +44,15 @@ function run(action: Action) {
             service: props.service,
         },
         {
-            onStart: () => (processing.value = true),
+            preserveScroll: true,
+            onStart: () => {
+                processing.value = true;
+                error.value = null;
+            },
+            onError: (errors) => {
+                error.value =
+                    Object.values(errors)[0] ?? 'Richiesta non valida.';
+            },
             onFinish: () => (processing.value = false),
         },
     );
@@ -51,17 +60,22 @@ function run(action: Action) {
 </script>
 
 <template>
-    <div class="flex gap-2">
-        <Button
-            v-for="action in ['restart', 'start', 'stop'] as Action[]"
-            :key="action"
-            size="sm"
-            :variant="action === 'stop' ? 'destructive' : 'outline'"
-            :disabled="processing"
-            :data-test="`${action}-${service ?? installationSlug ?? 'host'}`"
-            @click="run(action)"
-        >
-            {{ labels[action] }}
-        </Button>
+    <div class="flex flex-col gap-1">
+        <div class="flex gap-2">
+            <Button
+                v-for="action in ['restart', 'start', 'stop'] as Action[]"
+                :key="action"
+                size="sm"
+                :variant="action === 'stop' ? 'destructive' : 'outline'"
+                :disabled="processing"
+                :data-test="`${action}-${service ?? installationSlug ?? 'host'}`"
+                @click="run(action)"
+            >
+                {{ labels[action] }}
+            </Button>
+        </div>
+        <p v-if="error" class="text-sm text-red-600" data-test="restart-error">
+            {{ error }}
+        </p>
     </div>
 </template>

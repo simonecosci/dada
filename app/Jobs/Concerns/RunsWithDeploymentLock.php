@@ -7,10 +7,11 @@ use App\Deploy\SecretMasker;
 use App\Enums\CredentialType;
 use App\Enums\RunStatus;
 use App\Events\DeployRunUpdated;
-use App\Generation\HostFilesGenerator;
 use App\Models\DeploymentHost;
 use App\Models\DeployRun;
 use App\Models\DeployRunHost;
+use App\Models\Installation;
+use App\Models\Variable;
 use Closure;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -20,6 +21,8 @@ use Throwable;
 /**
  * Esecuzione di un run (deploy/restart) sotto il lock del deployment: stato del run,
  * righe per host, broadcast e chiusura in caso di interruzione del worker (failed()).
+ *
+ * La classe che usa il trait deve esporre `public int $runId`.
  */
 trait RunsWithDeploymentLock
 {
@@ -48,7 +51,7 @@ trait RunsWithDeploymentLock
             // Il proprietario del lock permette a failed() di rilasciare solo il proprio.
             $run->update(['options' => [...$options, 'lock_owner' => $lock->owner()]]);
             $hosts = $this->hosts($run, $options['deployment_host_id'] ?? null);
-            $log = new DeployLogger($run, $this->masker($hosts, app(HostFilesGenerator::class)));
+            $log = new DeployLogger($run, $this->masker($hosts));
 
             $run->update(['status' => RunStatus::Running, 'started_at' => now(), 'error' => null]);
             DeployRunUpdated::safeDispatch($run);
@@ -137,12 +140,28 @@ trait RunsWithDeploymentLock
         return $query->get();
     }
 
-    /** @param  Collection<int, DeploymentHost>  $hosts */
-    private function masker(Collection $hosts, HostFilesGenerator $generator): SecretMasker
+    /**
+     * Segreti letti direttamente dal DB (variabili segrete di host e installazioni, credenziali registry),
+     * indipendenti dalla generazione: una configurazione rotta non deve lasciare l'output senza mascheramento.
+     *
+     * @param  Collection<int, DeploymentHost>  $hosts
+     */
+    private function masker(Collection $hosts): SecretMasker
     {
-        $secrets = [];
+        $secrets = $this->extraSecrets($hosts);
         foreach ($hosts as $dh) {
-            $secrets = [...$secrets, ...$generator->generate($dh)->secretValues];
+            $owners = [[DeploymentHost::class, [$dh->id]], [Installation::class, $dh->installations()->pluck('id')->all()]];
+            foreach ($owners as [$type, $ids]) {
+                $variables = Variable::query()->where('owner_type', (new $type)->getMorphClass())
+                    ->whereIn('owner_id', $ids)->where('secret', true)->get();
+                foreach ($variables as $variable) {
+                    foreach ([$variable->default, $variable->value] as $candidate) {
+                        if (is_string($candidate) && $candidate !== '') {
+                            $secrets[] = $candidate;
+                        }
+                    }
+                }
+            }
 
             try {
                 foreach ($dh->registries as $registry) {
@@ -157,6 +176,17 @@ trait RunsWithDeploymentLock
         }
 
         return new SecretMasker($secrets);
+    }
+
+    /**
+     * Segreti aggiuntivi che la classe può fornire (es. quelli della generazione dei file).
+     *
+     * @param  Collection<int, DeploymentHost>  $hosts
+     * @return list<string>
+     */
+    protected function extraSecrets(Collection $hosts): array
+    {
+        return [];
     }
 
     private function finish(DeployRun $run, RunStatus $status, ?string $error = null): void

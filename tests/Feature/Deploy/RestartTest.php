@@ -4,6 +4,7 @@ use App\Enums\RunStatus;
 use App\Enums\RunType;
 use App\Jobs\RestartJob;
 use App\Models\DeployRun;
+use App\Models\Installation;
 use App\Models\User;
 use App\Ssh\Fake\FakeRemoteShellFactory;
 use App\Ssh\RemoteShellFactory;
@@ -143,4 +144,33 @@ it('fails the run with a masked error and releases the lock when the command fai
         ->and($host->status)->toBe(RunStatus::Failed)
         ->and($host->error)->toContain('boom')->not->toContain('pw-123')
         ->and(Cache::lock("deployment-run:{$dh->deployment_id}", 10)->get())->toBeTrue();
+});
+
+it('restarts a host whose generation is broken and still masks secrets', function () {
+    $fakes = restartShells();
+    $dh = hostWithWordpress();
+    // Servizio "wp" definito da due installazioni: la generazione fallisce.
+    Installation::factory()->for($dh)->create(['slug' => 'dup', 'compose' => ['services' => ['wp' => ['image' => 'wordpress:6']]]]);
+    $fakes->shellFor($dh->host)->expect('/restart\.sh/', 0, 'ok pw-123 done');
+
+    $this->actingAs(operatorOf($dh->deployment))->post("/deployment-hosts/{$dh->id}/restart", ['action' => 'stop'])->assertRedirect();
+    runQueuedRestart();
+
+    $run = DeployRun::sole();
+    expect($run->status)->toBe(RunStatus::Succeeded)
+        ->and($run->logs()->where('level', 'output')->pluck('message')->implode("\n"))->toContain('ok ****** done')->not->toContain('pw-123');
+});
+
+it('stores a friendly error when the script is missing on the host', function () {
+    $fakes = restartShells();
+    $dh = hostWithWordpress();
+    $fakes->shellFor($dh->host)->expect('/wp\.sh/', 127, 'sh: 1: ./wp.sh: not found pw-123');
+
+    $this->actingAs(operatorOf($dh->deployment))->post("/deployment-hosts/{$dh->id}/restart", ['action' => 'restart', 'installation_slug' => 'wp'])->assertRedirect();
+    runQueuedRestart();
+
+    $host = DeployRun::sole()->hosts()->sole();
+    expect($host->status)->toBe(RunStatus::Failed)
+        ->and($host->error)->toBe("script non presente sull'host: esegui prima un deploy")
+        ->and(DeployRun::sole()->logs()->where('level', 'output')->pluck('message')->implode("\n"))->toContain('not found')->not->toContain('pw-123');
 });

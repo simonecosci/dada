@@ -12,6 +12,7 @@ use App\Ssh\RemoteShellFactory;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use InvalidArgumentException;
+use RuntimeException;
 
 class RestartJob implements ShouldQueue
 {
@@ -88,6 +89,9 @@ class RestartJob implements ShouldQueue
             try {
                 $result = $shell->exec($command, fn (string $chunk) => $log->output($dh, $chunk));
                 $log->flush();
+                if ($result->exitCode === 127 || str_contains($result->output, 'No such file or directory')) {
+                    throw new RuntimeException("script non presente sull'host: esegui prima un deploy");
+                }
                 if (! $result->successful()) {
                     throw RemoteCommandFailed::from($command, $result);
                 }

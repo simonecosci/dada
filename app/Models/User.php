@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Enums\DeploymentRole;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -60,5 +62,17 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function isMaintainer(): bool
     {
         return $this->isAdmin() || (bool) $this->is_maintainer;
+    }
+
+    public function deployments(): BelongsToMany
+    {
+        return $this->belongsToMany(Deployment::class)->withPivot('role')->withTimestamps();
+    }
+
+    public function roleIn(Deployment $deployment): ?DeploymentRole
+    {
+        $role = $this->deployments()->whereKey($deployment->id)->first()?->pivot->role;
+
+        return $role === null ? null : DeploymentRole::from($role);
     }
 }

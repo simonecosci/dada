@@ -5,6 +5,8 @@ use App\Http\Controllers\Admin\HostController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Catalog\ProjectController;
 use App\Http\Controllers\Catalog\ProjectVersionController;
+use App\Http\Controllers\Deployments\DeploymentController;
+use App\Http\Controllers\Deployments\MemberController;
 use App\Http\Controllers\VariableRevealController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +23,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('versions/{version}/publish', [ProjectVersionController::class, 'publish'])->name('versions.publish');
     Route::post('versions/{version}/clone', [ProjectVersionController::class, 'clone'])->name('versions.clone');
     Route::delete('versions/{version}', [ProjectVersionController::class, 'destroy'])->name('versions.destroy');
+
+    Route::resource('deployments', DeploymentController::class);
+    Route::post('deployments/{deployment}/members', [MemberController::class, 'store'])->name('deployments.members.store');
+    Route::put('deployments/{deployment}/members/{user}', [MemberController::class, 'update'])->name('deployments.members.update');
+    Route::delete('deployments/{deployment}/members/{user}', [MemberController::class, 'destroy'])->name('deployments.members.destroy');
 });
 
 Route::middleware(['auth', 'verified', 'can:admin'])->prefix('admin')->name('admin.')->group(function () {

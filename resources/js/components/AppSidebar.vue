@@ -6,10 +6,12 @@ import {
     FolderGit2,
     KeyRound,
     LayoutGrid,
+    Rocket,
     Server,
     Users,
 } from '@lucide/vue';
 import { computed } from 'vue';
+import DeploymentController from '@/actions/App/Http/Controllers/Deployments/DeploymentController';
 import ProjectController from '@/actions/App/Http/Controllers/Catalog/ProjectController';
 import CredentialController from '@/actions/App/Http/Controllers/Admin/CredentialController';
 import HostController from '@/actions/App/Http/Controllers/Admin/HostController';
@@ -42,6 +44,11 @@ const mainNavItems: NavItem[] = [
         title: 'Catalogo',
         href: ProjectController.index(),
         icon: Boxes,
+    },
+    {
+        title: 'Deployment',
+        href: DeploymentController.index(),
+        icon: Rocket,
     },
 ];
 

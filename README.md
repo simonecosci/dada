@@ -5,11 +5,15 @@ Continuous Delivery di stack Docker su server propri.
 ## Sviluppo
 
 ```bash
+cp .env.example .env   # poi imposta APP_ENV=local e APP_DEBUG=true
 composer install
 npm install
+php artisan key:generate
 composer run dev
 php artisan test
 ```
+
+`.env.example` ha i default di produzione (`APP_ENV=production`, `APP_DEBUG=false`): in `local` Horizon e' accessibile a chiunque, quindi `local` va impostato solo sulla macchina di sviluppo.
 
 ## Installazione con Docker
 

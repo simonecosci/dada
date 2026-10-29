@@ -38,7 +38,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Prepare environment
-        run: cp .env.example .env && php artisan key:generate
+        run: cp .env.example .env && php artisan key:generate --force
 
       - name: Build frontend
         run: npm ci && npm run build
@@ -76,7 +76,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Prepare environment
-        run: cp .env.example .env && php artisan key:generate
+        run: cp .env.example .env && php artisan key:generate --force
 
       - name: Install JS dependencies
         run: npm ci
@@ -122,7 +122,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Prepare environment
-        run: cp .env.example .env && php artisan key:generate
+        run: cp .env.example .env && php artisan key:generate --force
 
       - name: Wait for sshd
         run: |

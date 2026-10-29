@@ -1,5 +1,10 @@
 # Copy to docker-compose.yml, copy .env.example to .env and fill in the secrets
 # (APP_KEY, DB_PASSWORD, REVERB_APP_KEY, REVERB_APP_SECRET). See README.md.
+x-dada-env: &dada-env
+    # Override .env: never run the image with local/debug (Horizon would be public).
+    APP_ENV: production
+    APP_DEBUG: 'false'
+
 x-dada: &dada
     image: ghcr.io/simonecosci/dada:latest
     env_file: .env
@@ -16,6 +21,7 @@ services:
     app:
         <<: *dada
         environment:
+            <<: *dada-env
             DADA_ROLE: web
             REVERB_UPSTREAM: reverb:8080
         ports:
@@ -24,6 +30,7 @@ services:
     worker:
         <<: *dada
         environment:
+            <<: *dada-env
             DADA_ROLE: worker
             # Queued broadcasts reach Reverb through the nginx of the `app` service.
             REVERB_HOST: app
@@ -33,6 +40,7 @@ services:
     scheduler:
         <<: *dada
         environment:
+            <<: *dada-env
             DADA_ROLE: scheduler
             REVERB_HOST: app
             REVERB_PORT: '8000'
@@ -41,6 +49,7 @@ services:
     reverb:
         <<: *dada
         environment:
+            <<: *dada-env
             DADA_ROLE: reverb
 
     postgres:

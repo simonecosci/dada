@@ -129,3 +129,16 @@ it('exposes view through the policy', function () {
         ->and($vw->can('operate', $d))->toBeFalse()
         ->and(User::factory()->create()->can('view', $d))->toBeFalse();
 });
+
+it('returns 404 when the targeted user is not a member of the deployment', function () {
+    $a = Deployment::factory()->create();
+    $b = Deployment::factory()->create();
+    $op = User::factory()->create();
+    $other = User::factory()->create();
+    $a->members()->attach($op, ['role' => 'operator']);
+    $b->members()->attach($other, ['role' => 'operator']);
+
+    $this->actingAs($op)->put(route('deployments.members.update', [$a, $other]), ['role' => 'viewer'])->assertNotFound();
+    $this->actingAs($op)->delete(route('deployments.members.destroy', [$a, $other]))->assertNotFound();
+    expect($other->roleIn($b))->toBe(DeploymentRole::Operator);
+});

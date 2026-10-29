@@ -40,7 +40,11 @@ class MemberController extends Controller
 
         $data = $request->validate(['role' => ['required', Rule::enum(DeploymentRole::class)]]);
 
+        $this->ensureMember($deployment, $user);
+
         DB::transaction(function () use ($deployment, $user, $data): void {
+            Deployment::whereKey($deployment->id)->lockForUpdate()->first();
+
             if ($data['role'] !== DeploymentRole::Operator->value) {
                 $this->ensureNotLastOperator($deployment, $user, "Non si può declassare l'ultimo operatore del deployment.");
             }
@@ -55,13 +59,22 @@ class MemberController extends Controller
     {
         Gate::authorize('manageMembers', $deployment);
 
+        $this->ensureMember($deployment, $user);
+
         DB::transaction(function () use ($deployment, $user): void {
+            Deployment::whereKey($deployment->id)->lockForUpdate()->first();
+
             $this->ensureNotLastOperator($deployment, $user, "Non si può rimuovere l'ultimo operatore del deployment.");
 
             $deployment->members()->detach($user->id);
         });
 
         return back();
+    }
+
+    private function ensureMember(Deployment $deployment, User $user): void
+    {
+        abort_unless($deployment->members()->whereKey($user->id)->exists(), 404);
     }
 
     private function ensureNotLastOperator(Deployment $deployment, User $user, string $message): void

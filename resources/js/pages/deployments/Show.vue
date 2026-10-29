@@ -5,9 +5,11 @@ import DeploymentController from "@/actions/App/Http/Controllers/Deployments/Dep
 import DeploymentHostController from "@/actions/App/Http/Controllers/Deployments/DeploymentHostController";
 import MemberController from "@/actions/App/Http/Controllers/Deployments/MemberController";
 import Heading from "@/components/Heading.vue";
+import RunsTable from "@/components/dada/RunsTable.vue";
 import InputError from "@/components/InputError.vue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { RunSummary } from "@/lib/runs";
 
 type Role = "operator" | "viewer";
 
@@ -39,6 +41,7 @@ const props = defineProps<{
     canUpdate: boolean;
     canDelete: boolean;
     canManageMembers: boolean;
+    runs: RunSummary[];
 }>();
 
 defineOptions({
@@ -335,6 +338,6 @@ function destroy() {
             </form>
         </div>
 
-        <p v-else class="text-sm text-muted-foreground">Disponibile a breve</p>
+        <RunsTable v-else :deployment-id="deployment.id" :runs="runs" />
     </div>
 </template>

@@ -5,6 +5,8 @@ import DeploymentController from "@/actions/App/Http/Controllers/Deployments/Dep
 import DeploymentHostController from "@/actions/App/Http/Controllers/Deployments/DeploymentHostController";
 import InstallationController from "@/actions/App/Http/Controllers/Deployments/InstallationController";
 import CodeEditor from "@/components/dada/CodeEditor.vue";
+import RunsTable from "@/components/dada/RunsTable.vue";
+import type { RunSummary } from "@/lib/runs";
 import VariablesEditor from "@/components/dada/VariablesEditor.vue";
 import Heading from "@/components/Heading.vue";
 import InputError from "@/components/InputError.vue";
@@ -38,6 +40,7 @@ const props = defineProps<{
     compose_template: string;
     canOperate: boolean;
     canReveal: boolean;
+    runs: RunSummary[];
 }>();
 
 defineOptions({
@@ -542,6 +545,6 @@ function destroy() {
             </template>
         </div>
 
-        <p v-else class="text-sm text-muted-foreground">Disponibile a breve</p>
+        <RunsTable v-else :deployment-id="deployment.id" :runs="runs" />
     </div>
 </template>

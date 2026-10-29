@@ -80,6 +80,7 @@ class DeploymentController extends Controller
             'canUpdate' => $request->user()->can('update', $deployment),
             'canDelete' => $request->user()->can('delete', $deployment),
             'canManageMembers' => $canManageMembers,
+            'runs' => RunController::summaries($deployment->runs()),
         ]);
     }
 

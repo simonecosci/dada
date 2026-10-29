@@ -21,6 +21,11 @@ class Deployment extends Model
         return $this->hasMany(DeploymentHost::class);
     }
 
+    public function runs(): HasMany
+    {
+        return $this->hasMany(DeployRun::class);
+    }
+
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class)->withPivot('role')->withTimestamps();

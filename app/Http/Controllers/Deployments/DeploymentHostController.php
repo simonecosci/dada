@@ -95,6 +95,9 @@ class DeploymentHostController extends Controller
                 : ComposeFragment::dump($deploymentHost->compose_template),
             'canOperate' => $canOperate,
             'canReveal' => $canOperate,
+            'runs' => RunController::summaries(
+                $deployment->runs()->whereHas('hosts', fn ($q) => $q->where('deployment_host_id', $deploymentHost->id)),
+            ),
         ]);
     }
 

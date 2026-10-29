@@ -46,11 +46,17 @@ class DeployLogger
             $this->write('output', $dh, rtrim($line, "\r"));
         }
 
-        // Output senza newline (es. barre di avanzamento con solo \r): non accumulare all'infinito.
+        // Output senza newline (es. barre di avanzamento con solo CR): non accumulare all'infinito.
+        // Si maschera l'intero buffer e si emette tutto tranne la coda lunga (segreto piu lungo - 1) byte:
+        // un segreto interrotto dal taglio ne resta fuori, cosi non viene mai emesso a pezzi.
         if (strlen($this->buffers[$key]) > self::MAX_MESSAGE_BYTES) {
-            $partial = rtrim($this->buffers[$key], "\r");
-            $this->buffers[$key] = '';
-            $this->write('output', $dh, $partial);
+            $masked = $this->mask($this->buffers[$key]);
+            $cut = strlen($masked) - max(0, $this->masker->maxLength() - 1);
+            $emit = $cut > 0 ? mb_strcut($masked, 0, $cut) : '';
+            $this->buffers[$key] = substr($masked, strlen($emit));
+            if ($emit !== '') {
+                $this->write('output', $dh, rtrim($emit, "\r"));
+            }
         }
     }
 

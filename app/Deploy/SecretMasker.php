@@ -39,6 +39,12 @@ class SecretMasker
         return $text;
     }
 
+    /** Lunghezza in byte del segreto più lungo (0 se non ce ne sono). */
+    public function maxLength(): int
+    {
+        return $this->secrets === [] ? 0 : strlen($this->secrets[0]);
+    }
+
     /** @param  list<string>  $more */
     public function with(array $more): self
     {

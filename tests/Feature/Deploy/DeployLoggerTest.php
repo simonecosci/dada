@@ -118,7 +118,7 @@ it('emits an oversized partial line without waiting for a newline', function () 
     $messages = $run->logs()->pluck('message');
     expect($messages->count())->toBe(2)
         ->and(strlen($messages[0]))->toBeLessThanOrEqual(8192 + 3)
-        ->and($messages[1])->toBe('******');
+        ->and($messages[1])->toEndWith('******')->not->toContain('progress');
 });
 
 it('scrubs invalid utf-8 before persisting', function () {
@@ -129,4 +129,41 @@ it('scrubs invalid utf-8 before persisting', function () {
     $message = $run->logs()->value('message');
     expect(mb_check_encoding($message, 'UTF-8'))->toBeTrue()
         ->and($message)->toStartWith('bad ')->toEndWith(' bytes');
+});
+
+it('never emits a secret straddling the 8 KB partial-buffer cut', function () {
+    Event::fake([DeployRunLogged::class]);
+    $run = DeployRun::factory()->create();
+    $log = new DeployLogger($run, new SecretMasker(['SECRETVALUE12345']));
+    $log->output(null, str_repeat('a', 8185).'SECRETVA');
+    $log->output(null, "LUE12345 done\n");
+    $log->flush();
+
+    $messages = $run->logs()->pluck('message');
+    expect($messages->count())->toBeGreaterThanOrEqual(2);
+    foreach ($messages as $message) {
+        expect($message)->not->toContain('SECRET')->not->toContain('VALUE')->not->toContain('12345');
+    }
+    expect($messages->last())->toEndWith('****** done');
+});
+
+it('does not throw from DeployRunUpdated::safeDispatch when the broadcaster fails', function () {
+    $broadcaster = new class extends Illuminate\Broadcasting\Broadcasters\Broadcaster
+    {
+        public function auth($request) {}
+
+        public function validAuthenticationResponse($request, $result) {}
+
+        public function broadcast(array $channels, $event, array $payload = []): void
+        {
+            throw new RuntimeException('reverb down');
+        }
+    };
+    Illuminate\Support\Facades\Broadcast::extend('boom2', fn () => $broadcaster);
+    config(['broadcasting.default' => 'boom2', 'broadcasting.connections.boom2' => ['driver' => 'boom2']]);
+
+    $run = DeployRun::factory()->create();
+    App\Events\DeployRunUpdated::safeDispatch($run);
+
+    expect(true)->toBeTrue();
 });

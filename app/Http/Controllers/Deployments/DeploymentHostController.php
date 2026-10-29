@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -49,27 +50,30 @@ class DeploymentHostController extends Controller
     {
         Gate::authorize('operate', $deployment);
 
+        $request->merge(['stack_name' => $request->input('stack_name') ?: $deployment->slug]);
+
         $data = $request->validate([
             'host_id' => ['required', 'integer', 'exists:hosts,id'],
             'path' => $this->pathRules(null, (int) $request->input('host_id')),
             'orchestrator' => ['required', Rule::enum(Orchestrator::class)],
-            'stack_name' => ['nullable', 'string', 'max:255', 'regex:'.self::SLUG],
+            'stack_name' => ['required', 'string', 'max:255', 'regex:'.self::SLUG, $this->stackRule(null, (int) $request->input('host_id'))],
         ], $this->messages());
 
         $dh = $deployment->hosts()->create([
             'host_id' => $data['host_id'],
             'path' => $data['path'],
             'orchestrator' => $data['orchestrator'],
-            'stack_name' => $data['stack_name'] ?? $deployment->slug,
+            'stack_name' => $data['stack_name'],
             'compose_template' => [],
         ]);
 
         return to_route('deployments.hosts.show', [$deployment, $dh]);
     }
 
-    public function show(Deployment $deployment, DeploymentHost $deploymentHost): Response
+    public function show(Request $request, Deployment $deployment, DeploymentHost $deploymentHost): Response
     {
-        $this->authorizeHost($deployment, $deploymentHost);
+        $this->authorizeHost($deployment, $deploymentHost, 'view');
+        $canOperate = $request->user()->can('operate', $deployment);
 
         return Inertia::render('deployments/hosts/Show', [
             'deployment' => $deployment->only(['id', 'name', 'slug']),
@@ -89,7 +93,8 @@ class DeploymentHostController extends Controller
             'compose_template' => $deploymentHost->compose_template === []
                 ? ''
                 : ComposeFragment::dump($deploymentHost->compose_template),
-            'canReveal' => true,
+            'canOperate' => $canOperate,
+            'canReveal' => $canOperate,
         ]);
     }
 
@@ -112,7 +117,7 @@ class DeploymentHostController extends Controller
         $data = $request->validate([
             'path' => $this->pathRules($deploymentHost, $deploymentHost->host_id),
             'orchestrator' => ['required', Rule::enum(Orchestrator::class)],
-            'stack_name' => ['required', 'string', 'max:255', 'regex:'.self::SLUG],
+            'stack_name' => ['required', 'string', 'max:255', 'regex:'.self::SLUG, $this->stackRule($deploymentHost, $deploymentHost->host_id)],
             'compose_template' => ['nullable', 'string', 'max:262144'],
         ], $this->messages());
 
@@ -179,9 +184,9 @@ class DeploymentHostController extends Controller
         return back();
     }
 
-    private function authorizeHost(Deployment $deployment, DeploymentHost $deploymentHost): void
+    private function authorizeHost(Deployment $deployment, DeploymentHost $deploymentHost, string $ability = 'operate'): void
     {
-        Gate::authorize('operate', $deployment);
+        Gate::authorize($ability, $deployment);
         abort_unless($deploymentHost->deployment_id === $deployment->id, 404);
     }
 
@@ -211,12 +216,18 @@ class DeploymentHostController extends Controller
         ];
     }
 
+    private function stackRule(?DeploymentHost $ignore, int $hostId): Unique
+    {
+        return Rule::unique('deployment_hosts', 'stack_name')->where('host_id', $hostId)->ignore($ignore?->id);
+    }
+
     /** @return array<string, string> */
     private function messages(): array
     {
         return [
             'path.regex' => 'Il percorso deve essere assoluto e contenere solo lettere, cifre, punto, trattino, underscore e barre.',
             'path.unique' => 'Questo percorso è già usato su questo host.',
+            'stack_name.unique' => 'Questo nome di stack è già usato su questo host.',
             'stack_name.regex' => 'Il nome dello stack può contenere solo minuscole, cifre e trattini.',
         ];
     }

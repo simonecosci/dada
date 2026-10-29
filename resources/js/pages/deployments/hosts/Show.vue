@@ -36,6 +36,7 @@ const props = defineProps<{
     registries: number[];
     availableRegistries: RegistryOption[];
     compose_template: string;
+    canOperate: boolean;
     canReveal: boolean;
 }>();
 
@@ -52,6 +53,8 @@ const tabs = [
     { key: "variables", label: "Variabili host" },
     { key: "registries", label: "Registry" },
     { key: "template", label: "Template compose" },
+    { key: "files", label: "File" },
+    { key: "runs", label: "Esecuzioni" },
 ] as const;
 const tab = ref<(typeof tabs)[number]["key"]>("installations");
 
@@ -161,7 +164,7 @@ function destroy() {
                 :description="`${deploymentHost.host.hostname} · ${deploymentHost.path} · ${deploymentHost.orchestrator} · stack ${deploymentHost.stack_name}`"
             />
             <div class="flex gap-2">
-                <Button variant="outline" as-child>
+                <Button v-if="canOperate" variant="outline" as-child>
                     <Link :href="DeploymentHostController.edit(hostParams)">
                         Impostazioni
                     </Link>
@@ -171,7 +174,9 @@ function destroy() {
                         Torna al deployment
                     </Link>
                 </Button>
-                <Button variant="destructive" @click="destroy">Rimuovi</Button>
+                <Button v-if="canOperate" variant="destructive" @click="destroy"
+                    >Rimuovi</Button
+                >
             </div>
         </div>
 
@@ -226,6 +231,7 @@ function destroy() {
                             </td>
                             <td class="flex justify-end gap-2 px-4 py-2">
                                 <Button
+                                    v-if="canOperate"
                                     variant="outline"
                                     size="sm"
                                     :disabled="idx === 0"
@@ -235,6 +241,7 @@ function destroy() {
                                     ↑
                                 </Button>
                                 <Button
+                                    v-if="canOperate"
                                     variant="outline"
                                     size="sm"
                                     :disabled="idx === sorted.length - 1"
@@ -265,7 +272,7 @@ function destroy() {
                     </tbody>
                 </table>
             </div>
-            <div>
+            <div v-if="canOperate">
                 <Button as-child data-test="install-version-link">
                     <Link
                         :href="InstallationController.create(deploymentHost.id)"
@@ -293,9 +300,10 @@ function destroy() {
                 v-model="variablesForm.variables"
                 mode="host"
                 :can-reveal="canReveal"
+                :readonly="!canOperate"
                 :errors="variableErrors"
             />
-            <div>
+            <div v-if="canOperate">
                 <Button
                     :disabled="variablesForm.processing"
                     data-test="save-host-variables"
@@ -322,6 +330,7 @@ function destroy() {
                     v-model="registryForm.credential_ids"
                     type="checkbox"
                     :value="r.id"
+                    :disabled="!canOperate"
                 />
                 {{ r.name }}
                 <span v-if="r.registry_url" class="text-muted-foreground">
@@ -341,7 +350,7 @@ function destroy() {
                     ] ?? registryForm.errors.credential_ids
                 "
             />
-            <div>
+            <div v-if="canOperate">
                 <Button
                     :disabled="registryForm.processing"
                     data-test="save-registries"
@@ -352,7 +361,10 @@ function destroy() {
             </div>
         </div>
 
-        <div v-else class="flex max-w-4xl flex-col gap-4">
+        <div
+            v-else-if="tab === 'template'"
+            class="flex max-w-4xl flex-col gap-4"
+        >
             <p class="text-sm text-muted-foreground">
                 Sono ammesse solo le chiavi <code>volumes</code> e
                 <code>networks</code>.
@@ -360,9 +372,10 @@ function destroy() {
             <CodeEditor
                 v-model="templateForm.compose_template"
                 language="yaml"
+                :readonly="!canOperate"
                 :errors="templateErrors"
             />
-            <div>
+            <div v-if="canOperate">
                 <Button
                     :disabled="templateForm.processing"
                     data-test="save-template"
@@ -372,5 +385,7 @@ function destroy() {
                 </Button>
             </div>
         </div>
+
+        <p v-else class="text-sm text-muted-foreground">Disponibile a breve</p>
     </div>
 </template>

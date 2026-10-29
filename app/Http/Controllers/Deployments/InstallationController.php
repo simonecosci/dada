@@ -12,6 +12,7 @@ use App\Models\DeploymentHost;
 use App\Models\Installation;
 use App\Models\Project;
 use App\Models\ProjectVersion;
+use App\Models\Variable;
 use App\Variables\VariableData;
 use App\Variables\VariableRules;
 use App\Variables\VariableSync;
@@ -80,10 +81,11 @@ class InstallationController extends Controller
         return to_route('deployments.hosts.show', [$deploymentHost->deployment_id, $deploymentHost]);
     }
 
-    public function edit(Installation $installation): Response
+    public function edit(Request $request, Installation $installation): Response
     {
         $dh = $installation->deploymentHost;
-        Gate::authorize('operate', $dh->deployment);
+        Gate::authorize('view', $dh->deployment);
+        $canOperate = $request->user()->can('operate', $dh->deployment);
 
         $installation->load('version.project');
 
@@ -100,7 +102,8 @@ class InstallationController extends Controller
             'compose_yaml' => ComposeFragment::dump($installation->compose),
             'commands' => $installation->commands,
             'variables' => $installation->variables->map(fn ($v) => VariableData::forClient($v))->all(),
-            'canReveal' => true,
+            'canOperate' => $canOperate,
+            'canReveal' => $canOperate,
         ]);
     }
 
@@ -136,14 +139,16 @@ class InstallationController extends Controller
             throw ValidationException::withMessages(['commands' => implode("\n", $errors)]);
         }
 
-        DB::transaction(function () use ($installation, $data, $compose, $commands): void {
+        $rows = $this->variableRows($installation, $data['variables']);
+
+        DB::transaction(function () use ($installation, $data, $compose, $commands, $rows): void {
             $installation->update([
                 'slug' => $data['slug'],
                 'order' => $data['order'],
                 'compose' => $compose,
                 'commands' => $commands,
             ]);
-            VariableSync::sync($installation, $data['variables'], allowHostGlobal: false);
+            VariableSync::sync($installation, $rows, allowHostGlobal: false);
         });
 
         return back();
@@ -186,6 +191,56 @@ class InstallationController extends Controller
         });
 
         return back();
+    }
+
+    /**
+     * Di un'installazione il client può cambiare solo use_default e value delle variabili esistenti:
+     * la struttura (chiave, scope, segreto, default...) resta quella copiata dalla versione.
+     *
+     * @param  array<int, array<string, mixed>>  $submitted
+     * @return list<array<string, mixed>>
+     */
+    private function variableRows(Installation $installation, array $submitted): array
+    {
+        $stored = $installation->variables()->get()->keyBy('id');
+        $byId = [];
+        $errors = [];
+
+        foreach (array_values($submitted) as $i => $row) {
+            $id = $row['id'] ?? null;
+            if ($id === null || ! $stored->has((int) $id)) {
+                $errors["variables.$i.id"] = 'Variabile sconosciuta: su un\'installazione non si possono aggiungere variabili.';
+            } else {
+                $byId[(int) $id] = $row;
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return $stored->map(function (Variable $var) use ($byId): array {
+            $in = $byId[$var->id] ?? [];
+            $row = [
+                'id' => $var->id,
+                'key' => $var->key,
+                'scope' => $var->scope->value,
+                'description' => $var->description,
+                'required' => $var->required,
+                'secret' => $var->secret,
+                'use_default' => array_key_exists('use_default', $in) && $in['use_default'] !== null ? (bool) $in['use_default'] : $var->use_default,
+            ];
+
+            // Un segreto senza la chiave resta invariato; un non segreto va sempre passato per intero.
+            if (! $var->secret) {
+                $row['default'] = $var->default;
+                $row['value'] = array_key_exists('value', $in) ? $in['value'] : $var->value;
+            } elseif (array_key_exists('value', $in)) {
+                $row['value'] = $in['value'];
+            }
+
+            return $row;
+        })->values()->all();
     }
 
     /**

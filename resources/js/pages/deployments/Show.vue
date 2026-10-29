@@ -143,14 +143,6 @@ function destroy() {
         </div>
 
         <div v-if="tab === 'hosts'" class="flex flex-col gap-4">
-            <p
-                v-if="!canOperate"
-                class="text-sm text-muted-foreground"
-                data-test="hosts-restricted"
-            >
-                Solo gli operatori possono vedere e gestire gli host.
-            </p>
-            <template v-else>
                 <div class="overflow-x-auto rounded-lg border">
                     <table class="w-full text-sm">
                         <thead class="bg-muted/50 text-left">
@@ -211,7 +203,7 @@ function destroy() {
                         </tbody>
                     </table>
                 </div>
-                <div>
+                <div v-if="canOperate">
                     <Button as-child data-test="add-host">
                         <Link
                             :href="
@@ -222,7 +214,6 @@ function destroy() {
                         </Link>
                     </Button>
                 </div>
-            </template>
         </div>
 
         <div v-else-if="tab === 'members'" class="flex flex-col gap-4">

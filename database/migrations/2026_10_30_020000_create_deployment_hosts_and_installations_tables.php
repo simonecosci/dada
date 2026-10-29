@@ -19,6 +19,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['host_id', 'path']);
+            $table->unique(['host_id', 'stack_name']);
         });
 
         Schema::create('deployment_host_registry', function (Blueprint $table) {

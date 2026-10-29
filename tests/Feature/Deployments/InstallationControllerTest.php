@@ -99,7 +99,7 @@ it('shows a host without exposing secrets and lists unused host-global keys', fu
         ->assertInertia(fn (Assert $p) => $p->component('deployments/hosts/Show')
             ->where('canReveal', true)->where('unused', ['TOKEN', 'ORPHAN'])
             ->where('variables.0.default', null)->has('variables', 2));
-    $this->actingAs(viewerFor($d))->get(route('deployments.hosts.show', [$d, $dh]))->assertForbidden();
+    $this->actingAs(User::factory()->create())->get(route('deployments.hosts.show', [$d, $dh]))->assertForbidden();
 });
 
 it('updates host-global variables', function () {
@@ -194,7 +194,7 @@ it('validates installation updates like the catalog', function () {
         ->assertSessionHasErrors('commands');
     $this->actingAs($op)->put($url, [...$base, 'slug' => "a\nb"])->assertSessionHasErrors('slug');
     $this->actingAs($op)->put($url, [...$base, 'variables' => [['key' => 'X', 'scope' => 'host-global']]])
-        ->assertSessionHasErrors('variables.0.scope');
+        ->assertSessionHasErrors('variables.0.id');
 });
 
 it('rejects duplicate installation slugs on the same host on update', function () {
@@ -205,10 +205,9 @@ it('rejects duplicate installation slugs on the same host on update', function (
     ])->assertSessionHasErrors('slug');
 });
 
-it('forbids viewers on installation edit, update and destroy', function () {
+it('forbids viewers on installation destroy', function () {
     $inst = Installation::factory()->create();
     $vw = viewerFor($inst->deploymentHost->deployment);
-    $this->actingAs($vw)->get(route('installations.edit', $inst))->assertForbidden();
     $this->actingAs($vw)->delete(route('installations.destroy', $inst))->assertForbidden();
     expect(Installation::count())->toBe(1);
 });
@@ -273,4 +272,84 @@ it('lists registered hosts to pick from without sensitive fields', function () {
     $this->actingAs(operatorFor($d))->get(route('deployments.hosts.create', $d))
         ->assertInertia(fn (Assert $p) => $p->component('deployments/hosts/Form')
             ->has('hosts', 1, fn (Assert $h) => $h->hasAll(['id', 'name', 'hostname'])));
+});
+
+it('ignores structural variable fields in installation updates', function () {
+    $inst = Installation::factory()->create();
+    $op = operatorFor($inst->deploymentHost->deployment);
+    $secret = Variable::factory()->secret()->for($inst, 'owner')->create(['key' => 'DB_PASSWORD', 'default' => 'dd', 'required' => true]);
+    $plain = Variable::factory()->for($inst, 'owner')->create(['key' => 'WP_DEBUG', 'default' => 'false', 'position' => 1]);
+    $base = ['slug' => 'wp', 'order' => 1, 'compose_yaml' => "services:\n  wp:\n    image: x\n", 'commands' => []];
+
+    $this->actingAs($op)->put(route('installations.update', $inst), [...$base, 'variables' => [
+        ['id' => $secret->id, 'key' => 'RENAMED', 'scope' => 'compose', 'secret' => false, 'required' => false, 'default' => 'hacked', 'use_default' => false, 'value' => 'v1'],
+        ['id' => $plain->id, 'key' => 'WP_DEBUG', 'scope' => 'container', 'default' => 'true', 'use_default' => false, 'value' => 'v2'],
+    ]])->assertSessionHasNoErrors();
+
+    $secret->refresh();
+    $plain->refresh();
+    expect($secret->key)->toBe('DB_PASSWORD')->and($secret->secret)->toBeTrue()->and($secret->required)->toBeTrue()
+        ->and($secret->scope->value)->toBe('container')->and($secret->default)->toBe('dd')
+        ->and($secret->value)->toBe('v1')->and($secret->use_default)->toBeFalse()
+        ->and($plain->default)->toBe('false')->and($plain->value)->toBe('v2');
+
+    // un segreto senza la chiave value resta invariato
+    $this->actingAs($op)->put(route('installations.update', $inst), [...$base, 'variables' => [
+        ['id' => $secret->id, 'use_default' => false],
+    ]])->assertSessionHasNoErrors();
+    expect($secret->fresh()->value)->toBe('v1');
+});
+
+it('rejects new or unknown variables in installation updates and never drops existing ones', function () {
+    $inst = Installation::factory()->create();
+    $other = Installation::factory()->create();
+    $op = operatorFor($inst->deploymentHost->deployment);
+    Variable::factory()->for($inst, 'owner')->create(['key' => 'KEEP']);
+    $foreign = Variable::factory()->for($other, 'owner')->create();
+    $base = ['slug' => 'wp', 'order' => 1, 'compose_yaml' => "services:\n  wp:\n    image: x\n", 'commands' => []];
+
+    $this->actingAs($op)->put(route('installations.update', $inst), [...$base, 'variables' => [['key' => 'NEW', 'scope' => 'container']]])
+        ->assertSessionHasErrors('variables.0.id');
+    $this->actingAs($op)->put(route('installations.update', $inst), [...$base, 'variables' => [['id' => $foreign->id, 'value' => 'x']]])
+        ->assertSessionHasErrors('variables.0.id');
+    $this->actingAs($op)->put(route('installations.update', $inst), [...$base, 'variables' => []])->assertSessionHasNoErrors();
+    expect($inst->variables()->count())->toBe(1)->and($foreign->fresh()->value)->toBeNull();
+});
+
+it('lets viewers see a host read-only with masked secrets', function () {
+    $d = Deployment::factory()->create();
+    $dh = DeploymentHost::factory()->for($d)->create();
+    VariableSync::sync($dh, [['key' => 'TOKEN', 'scope' => 'host-global', 'secret' => true, 'default' => 'topsecret']]);
+    $vw = viewerFor($d);
+    $res = $this->actingAs($vw)->get(route('deployments.hosts.show', [$d, $dh]));
+    $res->assertInertia(fn (Assert $p) => $p->component('deployments/hosts/Show')
+        ->where('canOperate', false)->where('canReveal', false)->where('variables.0.default', null));
+    expect($res->getContent())->not->toContain('topsecret');
+    $this->actingAs($vw)->put(route('deployments.hosts.variables.update', [$d, $dh]), ['variables' => []])->assertForbidden();
+    $this->actingAs($vw)->get(route('deployments.show', $d))
+        ->assertInertia(fn (Assert $p) => $p->has('hosts', 1)->where('canOperate', false));
+});
+
+it('lets viewers open an installation read-only', function () {
+    $inst = Installation::factory()->create();
+    $vw = viewerFor($inst->deploymentHost->deployment);
+    Variable::factory()->secret()->for($inst, 'owner')->create(['default' => 'hiddenvalue']);
+    $res = $this->actingAs($vw)->get(route('installations.edit', $inst));
+    $res->assertInertia(fn (Assert $p) => $p->where('canOperate', false)->where('canReveal', false)->where('variables.0.default', null));
+    expect($res->getContent())->not->toContain('hiddenvalue');
+    $this->actingAs(User::factory()->create())->get(route('installations.edit', $inst))->assertForbidden();
+});
+
+it('rejects a stack name already used on the same host', function () {
+    $d = Deployment::factory()->create();
+    $a = DeploymentHost::factory()->for($d)->create(['stack_name' => 'shared']);
+    $d2 = Deployment::factory()->create(['slug' => 'shared']);
+    $op = operatorFor($d2);
+    $this->actingAs($op)->post(route('deployments.hosts.store', $d2), ['host_id' => $a->host_id, 'path' => '/srv/other', 'orchestrator' => 'compose'])
+        ->assertSessionHasErrors('stack_name');
+    $this->actingAs($op)->post(route('deployments.hosts.store', $d2), ['host_id' => Host::factory()->create()->id, 'path' => '/srv/other', 'orchestrator' => 'compose'])
+        ->assertSessionHasNoErrors();
+    $b = DeploymentHost::factory()->for($d2)->create(['host_id' => $a->host_id, 'stack_name' => 'mine']);
+    $this->actingAs($op)->put(route('deployments.hosts.update', [$d2, $b]), ['path' => $b->path, 'orchestrator' => 'compose', 'stack_name' => 'shared'])
+        ->assertSessionHasErrors('stack_name');
 });

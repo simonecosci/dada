@@ -29,6 +29,7 @@ const props = defineProps<{
     compose_yaml: string;
     commands: CommandRow[];
     variables: VariableRow[];
+    canOperate: boolean;
     canReveal: boolean;
 }>();
 
@@ -122,7 +123,12 @@ function destroy() {
         <div class="grid max-w-md gap-4 md:grid-cols-2">
             <div class="grid gap-2">
                 <Label for="slug">Slug</Label>
-                <Input id="slug" v-model="form.slug" autocomplete="off" />
+                <Input
+                    id="slug"
+                    v-model="form.slug"
+                    :disabled="!canOperate"
+                    autocomplete="off"
+                />
                 <InputError :message="form.errors.slug" />
             </div>
             <div class="grid gap-2">
@@ -131,6 +137,7 @@ function destroy() {
                     id="order"
                     v-model.number="form.order"
                     type="number"
+                    :disabled="!canOperate"
                     min="0"
                 />
                 <InputError :message="form.errors.order" />
@@ -142,13 +149,18 @@ function destroy() {
             <CodeEditor
                 v-model="form.compose_yaml"
                 language="yaml"
+                :readonly="!canOperate"
                 :errors="composeErrors"
             />
         </section>
 
         <section class="grid gap-2">
             <h2 class="text-lg font-medium">Comandi</h2>
-            <CommandsEditor v-model="form.commands" :services="services" />
+            <CommandsEditor
+                v-model="form.commands"
+                :services="services"
+                :readonly="!canOperate"
+            />
             <InputError
                 v-for="(e, i) in commandsErrors"
                 :key="i"
@@ -162,19 +174,23 @@ function destroy() {
                 v-model="form.variables"
                 mode="installation"
                 :can-reveal="canReveal"
+                :readonly="!canOperate"
                 :errors="errorMap"
             />
         </section>
 
         <div class="flex items-center gap-3">
             <Button
+                v-if="canOperate"
                 :disabled="form.processing"
                 data-test="save-installation"
                 @click="save"
             >
                 Salva
             </Button>
-            <Button variant="destructive" @click="destroy">Rimuovi</Button>
+            <Button v-if="canOperate" variant="destructive" @click="destroy"
+                >Rimuovi</Button
+            >
             <Button variant="outline" as-child>
                 <Link
                     :href="

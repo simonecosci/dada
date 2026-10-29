@@ -20,7 +20,7 @@ it('renders a compose installation script with init and service guard', function
     assertBashSyntax($s);
 });
 
-it('runs compose actions: inits only for all, stop then rm, unknown service exits 2', function () {
+it('runs compose actions: inits only for all, stop then rm, restart recreates in place, unknown service exits 2', function () {
     [$dh, $inst, $built] = composeFixture();
     $files = ['wp.sh' => ScriptRenderer::installation($dh, $inst, $built)];
 
@@ -33,12 +33,20 @@ it('runs compose actions: inits only for all, stop then rm, unknown service exit
     $r = runBashScript($files, 'wp.sh', ['start', 'wp']);
     expect($r['log'])->toBe("docker [compose] [up] [-d] [wp]\n");
 
+    // Ruling F1: restart non rimuove i container (i volumi anonimi restano).
     $r = runBashScript($files, 'wp.sh', ['restart']);
     expect($r['log'])->toBe(
-        "docker [compose] [stop] [-t] [10] [wp]\n".
-        "docker [compose] [rm] [-f] [wp]\n".
         "docker [compose] [--profile] [init] [run] [--rm] [migrate]\n".
-        "docker [compose] [up] [-d] [wp]\n"
+        "docker [compose] [up] [-d] [--force-recreate] [wp]\n"
+    );
+
+    $r = runBashScript($files, 'wp.sh', ['restart', 'wp']);
+    expect($r['log'])->toBe("docker [compose] [up] [-d] [--force-recreate] [wp]\n");
+
+    $r = runBashScript($files, 'wp.sh', ['stop']);
+    expect($r['log'])->toBe(
+        "docker [compose] [stop] [-t] [10] [wp]\n".
+        "docker [compose] [rm] [-f] [wp]\n"
     );
 
     $r = runBashScript($files, 'wp.sh', ['status']);
@@ -64,7 +72,7 @@ it('stops a compose start when an init fails', function () {
         ->and($r['log'])->toBe("docker [compose] [--profile] [init] [run] [--rm] [migrate]\n");
 });
 
-it('orders compose restart.sh and reverses on stop', function () {
+it('orders compose restart.sh, reverses on stop and restarts each installation in order', function () {
     $dh = DeploymentHost::factory()->create(['orchestrator' => 'compose', 'stack_name' => 'cliente-x']);
     // creata prima ma con order 2: l'ordine deve seguire `order`, non l'id
     $b = Installation::factory()->for($dh)->create(['slug' => 'b', 'order' => 2, 'compose' => ['services' => ['svc-b' => ['image' => 'x']]]]);
@@ -87,8 +95,11 @@ it('orders compose restart.sh and reverses on stop', function () {
     $r = runBashScript($files, 'restart.sh', ['restart']);
     expect($r['exit'])->toBe(0, $r['output'])
         ->and($r['files']['calls.log'] ?? null)->toBe(
-            "./b.sh stop all\n./a.sh stop all\n./a.sh start all\n./b.sh start all\n"
+            "./a.sh restart all\n./b.sh restart all\n"
         );
+
+    $r = runBashScript($files, 'restart.sh', ['stop']);
+    expect($r['files']['calls.log'] ?? null)->toBe("./b.sh stop all\n./a.sh stop all\n");
 
     $r = runBashScript($files, 'restart.sh', ['nope']);
     expect($r['exit'])->toBe(2)->and($r['files'])->not->toHaveKey('calls.log');

@@ -21,11 +21,8 @@ case "$ACTION" in
 @endforeach
     ;;
   restart)
-@foreach ($reversed as $script)
-    {!! $script !!} stop all
-@endforeach
 @foreach ($scripts as $script)
-    {!! $script !!} start all
+    {!! $script !!} restart all
 @endforeach
     ;;
   *) usage ;;

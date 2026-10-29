@@ -49,6 +49,16 @@ stop_services() {
   fi
 }
 
+# Ruling F1: niente rm, i container sono ricreati sul posto (i volumi anonimi restano).
+restart_services() {
+  if [ "$TARGET" = all ]; then
+    run_inits
+  fi
+  if [ "${#SERVICES[@]}" -gt 0 ]; then
+    docker compose up -d --force-recreate "${SERVICES[@]}"
+  fi
+}
+
 status_services() {
   if [ "${#SERVICES[@]}" -gt 0 ]; then
     docker compose ps "${SERVICES[@]}"
@@ -58,9 +68,6 @@ status_services() {
 case "$ACTION" in
   start) start_services ;;
   stop) stop_services ;;
-  restart)
-    stop_services
-    start_services
-    ;;
+  restart) restart_services ;;
   status) status_services ;;
 esac

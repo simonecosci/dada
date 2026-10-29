@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     BookOpen,
+    Boxes,
     FolderGit2,
     KeyRound,
     LayoutGrid,
@@ -9,6 +10,7 @@ import {
     Users,
 } from '@lucide/vue';
 import { computed } from 'vue';
+import ProjectController from '@/actions/App/Http/Controllers/Catalog/ProjectController';
 import CredentialController from '@/actions/App/Http/Controllers/Admin/CredentialController';
 import HostController from '@/actions/App/Http/Controllers/Admin/HostController';
 import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
@@ -35,6 +37,11 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: 'Catalogo',
+        href: ProjectController.index(),
+        icon: Boxes,
     },
 ];
 

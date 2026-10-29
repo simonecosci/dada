@@ -3,8 +3,11 @@
 use App\Deploy\DeployLogger;
 use App\Deploy\SecretMasker;
 use App\Events\DeployRunLogged;
-use App\Models\DeployRun;
+use App\Events\DeployRunUpdated;
 use App\Models\DeploymentHost;
+use App\Models\DeployRun;
+use Illuminate\Broadcasting\Broadcasters\Broadcaster;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Event;
 
 it('persists masked lines and broadcasts them', function () {
@@ -72,7 +75,7 @@ it('broadcasts the masked payload on the run channel', function () {
 });
 
 it('keeps the log row and does not throw when the broadcaster fails', function () {
-    $broadcaster = new class extends Illuminate\Broadcasting\Broadcasters\Broadcaster
+    $broadcaster = new class extends Broadcaster
     {
         public function auth($request) {}
 
@@ -83,7 +86,7 @@ it('keeps the log row and does not throw when the broadcaster fails', function (
             throw new RuntimeException('reverb down');
         }
     };
-    Illuminate\Support\Facades\Broadcast::extend('boom', fn () => $broadcaster);
+    Broadcast::extend('boom', fn () => $broadcaster);
     config(['broadcasting.default' => 'boom', 'broadcasting.connections.boom' => ['driver' => 'boom']]);
 
     $run = DeployRun::factory()->create();
@@ -148,7 +151,7 @@ it('never emits a secret straddling the 8 KB partial-buffer cut', function () {
 });
 
 it('does not throw from DeployRunUpdated::safeDispatch when the broadcaster fails', function () {
-    $broadcaster = new class extends Illuminate\Broadcasting\Broadcasters\Broadcaster
+    $broadcaster = new class extends Broadcaster
     {
         public function auth($request) {}
 
@@ -159,11 +162,11 @@ it('does not throw from DeployRunUpdated::safeDispatch when the broadcaster fail
             throw new RuntimeException('reverb down');
         }
     };
-    Illuminate\Support\Facades\Broadcast::extend('boom2', fn () => $broadcaster);
+    Broadcast::extend('boom2', fn () => $broadcaster);
     config(['broadcasting.default' => 'boom2', 'broadcasting.connections.boom2' => ['driver' => 'boom2']]);
 
     $run = DeployRun::factory()->create();
-    App\Events\DeployRunUpdated::safeDispatch($run);
+    DeployRunUpdated::safeDispatch($run);
 
     expect(true)->toBeTrue();
 });

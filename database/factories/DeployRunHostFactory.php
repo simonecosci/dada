@@ -3,9 +3,9 @@
 namespace Database\Factories;
 
 use App\Enums\RunStatus;
+use App\Models\DeploymentHost;
 use App\Models\DeployRun;
 use App\Models\DeployRunHost;
-use App\Models\DeploymentHost;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**

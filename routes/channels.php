@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\DeployRun;
 use App\Models\Deployment;
+use App\Models\DeployRun;
 use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {

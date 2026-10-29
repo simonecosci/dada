@@ -4,8 +4,8 @@ namespace Database\Factories;
 
 use App\Enums\RunStatus;
 use App\Enums\RunType;
-use App\Models\DeployRun;
 use App\Models\Deployment;
+use App\Models\DeployRun;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 

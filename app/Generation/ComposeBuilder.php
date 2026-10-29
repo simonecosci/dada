@@ -11,11 +11,15 @@ class ComposeBuilder
 {
     private const SECTIONS = ['volumes', 'networks', 'configs'];
 
+    /** Chiavi di un init swarm tradotte in opzioni di `docker run` (vedi ScriptRenderer). */
+    public const SWARM_INIT_KEYS = ['image', 'command', 'environment', 'env_file', 'networks', 'volumes'];
+
     /** @param Collection<int, Installation> $installations */
     public static function build(DeploymentHost $dh, Collection $installations, EffectiveVariables $vars): BuiltCompose
     {
         $swarm = $dh->orchestrator === Orchestrator::Swarm;
         $errors = [];
+        $warnings = [];
 
         $template = is_array($dh->compose_template) ? $dh->compose_template : [];
         $sections = [
@@ -89,6 +93,11 @@ class ComposeBuilder
                 }
 
                 if ($isInit && $swarm) {
+                    foreach (array_keys($def) as $key) {
+                        if (! in_array($key, self::SWARM_INIT_KEYS, true)) {
+                            $warnings[] = "init {$name}: chiave {$key} ignorata in swarm";
+                        }
+                    }
                     $initServices[$slug][$name] = $def;
 
                     continue;
@@ -155,7 +164,7 @@ class ComposeBuilder
             }
         }
 
-        return new BuiltCompose($compose, $initServices, $servicesBySlug, []);
+        return new BuiltCompose($compose, $initServices, $servicesBySlug, $warnings);
     }
 
     /** @return array<string, mixed> */

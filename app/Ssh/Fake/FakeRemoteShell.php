@@ -19,6 +19,13 @@ class FakeRemoteShell implements RemoteShell
     /** @var list<string> */
     private array $commands = [];
 
+    /**
+     * Timeout passato a ciascun exec(), nello stesso ordine di $commands.
+     *
+     * @var list<?int>
+     */
+    private array $timeouts = [];
+
     /** @var array<string, array{contents: string, mode: int}> */
     private array $files = [];
 
@@ -53,6 +60,7 @@ class FakeRemoteShell implements RemoteShell
         }
 
         $this->commands[] = $command;
+        $this->timeouts[] = $timeout;
 
         foreach ($this->expectations as $expectation) {
             if (preg_match($expectation['pattern'], $command)) {
@@ -85,6 +93,12 @@ class FakeRemoteShell implements RemoteShell
     public function commands(): array
     {
         return $this->commands;
+    }
+
+    /** @return list<?int> */
+    public function timeouts(): array
+    {
+        return $this->timeouts;
     }
 
     /** @return array<string, array{contents: string, mode: int}> */

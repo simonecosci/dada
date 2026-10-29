@@ -16,6 +16,11 @@ class HostCheckJob implements ShouldQueue
 
     public int $tries = 1;
 
+    public int $timeout = 120;
+
+    /** Timeout (secondi) di ciascun comando di verifica. */
+    public const COMMAND_TIMEOUT = 30;
+
     public function __construct(public int $hostId) {}
 
     public function handle(RemoteShellFactory $shells): void
@@ -48,7 +53,7 @@ class HostCheckJob implements ShouldQueue
 
     private function run(RemoteShell $shell, string $command): string
     {
-        $result = $shell->exec($command);
+        $result = $shell->exec($command, timeout: self::COMMAND_TIMEOUT);
 
         if (! $result->successful()) {
             throw RemoteCommandFailed::from($command, $result);

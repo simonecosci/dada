@@ -3,7 +3,10 @@
 use App\Infrastructure\JumpChain;
 use App\Models\Credential;
 use App\Models\Host;
+use App\Ssh\ExecResult;
+use App\Ssh\HostKeyChanged;
 use App\Ssh\OpenSsh\OpenSshShell;
+use App\Ssh\RemoteCommandFailed;
 
 function shellState(OpenSshShell $shell, string $property): mixed
 {
@@ -31,6 +34,37 @@ it('writes keys with a trailing newline, known hosts and config, and cleans up o
     $shell->close();
 
     expect(is_dir($dir))->toBeFalse()->and(is_dir(shellState($shell, 'controlDir')))->toBeFalse();
+});
+
+it('removes keys and directories when the constructor fails', function () {
+    $tmp = sys_get_temp_dir().'/dada-ssh-test-'.uniqid();
+    config(['dada.ssh.tmp_path' => $tmp]);
+    $controlDirsBefore = glob(sys_get_temp_dir().'/dcm-*') ?: [];
+
+    $jump = Host::factory()->create();
+    $target = Host::factory()->create(['jump_host_id' => $jump->id]);
+    $chain = JumpChain::for($target);
+    $target->forceFill(['hostname' => "x\nProxyCommand id"]); // il builder fallisce dopo aver scritto le chiavi
+
+    expect(fn () => new OpenSshShell($chain))->toThrow(RemoteCommandFailed::class);
+
+    expect(glob($tmp.'/*') ?: [])->toBe([])
+        ->and(glob(sys_get_temp_dir().'/dcm-*') ?: [])->toBe($controlDirsBefore);
+});
+
+it('maps exit 255 to HostKeyChanged only when a chain alias is named', function () {
+    $target = Host::factory()->create(['name' => 'web1']);
+    $shell = new OpenSshShell(JumpChain::for($target));
+    $classify = fn (string $output) => (new ReflectionMethod($shell, 'connectionFailure'))
+        ->invoke($shell, 'true', new ExecResult(255, $output));
+
+    $changed = $classify("@@@ WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! @@@\nHost key for dada-h{$target->id} has changed");
+    $unrelated = $classify("Host key verification failed.\n");
+    $shell->close();
+
+    expect($changed)->toBeInstanceOf(HostKeyChanged::class)
+        ->and($changed->getMessage())->toBe('Chiave host cambiata per web1')
+        ->and($unrelated)->toBeInstanceOf(RemoteCommandFailed::class);
 });
 
 it('saves newly accepted host keys only for hosts without one (TOFU)', function () {

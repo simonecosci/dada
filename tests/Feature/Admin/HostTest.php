@@ -63,6 +63,24 @@ it('rejects a registry credential as ssh credential', function () {
         ->assertSessionHasErrors('credential_id');
 });
 
+it('rejects hostnames and usernames that could inject ssh_config directives', function (array $overrides, string $field) {
+    $this->actingAs(hostAdmin())->post('/admin/hosts', hostPayload($overrides))
+        ->assertSessionHasErrors($field);
+
+    expect(Host::count())->toBe(0);
+})->with([
+    'newline in hostname' => [['hostname' => "x\nProxyCommand sh -c 'id > /tmp/p'"], 'hostname'],
+    'space in hostname' => [['hostname' => 'a b'], 'hostname'],
+    'percent in hostname' => [['hostname' => 'h%d'], 'hostname'],
+    'newline in username' => [['username' => "deploy\nProxyCommand id"], 'username'],
+    'leading dash in username' => [['username' => '-oProxyCommand'], 'username'],
+]);
+
+it('accepts IPv4, IPv6 and dotted usernames', function (string $hostname) {
+    $this->actingAs(hostAdmin())->post('/admin/hosts', hostPayload(['hostname' => $hostname, 'username' => 'deploy.user_1']))
+        ->assertSessionHasNoErrors();
+})->with(['10.0.0.5', 'fe80::1', '[fe80::1]', 'web-1.example.com']);
+
 it('updates a host', function () {
     $h = Host::factory()->create();
 

@@ -148,9 +148,9 @@ class HostController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'hostname' => ['required', 'string', 'max:255'],
+            'hostname' => ['required', 'string', 'max:255', 'regex:/\A(?:[A-Za-z0-9._:-]+|\[[0-9A-Fa-f:.]+\])\z/'],
             'port' => ['required', 'integer', 'between:1,65535'],
-            'username' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'max:255', 'regex:/\A[A-Za-z0-9._][A-Za-z0-9._-]*\z/'],
             'credential_id' => ['required', 'integer', 'exists:credentials,id', function (string $attribute, mixed $value, Closure $fail): void {
                 if (Credential::find($value)?->type === CredentialType::Registry) {
                     $fail('Una credenziale registry non è usabile per SSH.');
@@ -162,6 +162,9 @@ class HostController extends Controller
                 }
             }],
             'sudo' => ['nullable', 'string', 'max:255'],
+        ], [
+            'hostname.regex' => 'L\'hostname può contenere solo lettere, cifre, ".", "-", ":" e "_" (o un indirizzo IPv6 tra parentesi quadre).',
+            'username.regex' => 'Lo username può contenere solo lettere, cifre, ".", "_" e "-" (non come primo carattere).',
         ]);
 
         $data['sudo'] ??= '';

@@ -28,7 +28,9 @@ it('stores every fact and the check time', function () {
     expect($host->fresh())->checked_at->not->toBeNull()
         ->facts->toBe(['os' => 'Linux 6.8', 'docker' => '27.3.1', 'cpus' => 4, 'memory_mb' => 7936, 'disk_free_mb' => 51200])
         ->and($shell->commands())->toContain("docker version --format '{{.Server.Version}}'")
-        ->and($shell->closed())->toBeTrue();
+        ->and($shell->closed())->toBeTrue()
+        ->and($shell->timeouts())->toBe(array_fill(0, 5, HostCheckJob::COMMAND_TIMEOUT))
+        ->and((new HostCheckJob($host->id))->timeout)->toBe(120);
 });
 
 it('marks host unreachable on connection failure', function () {

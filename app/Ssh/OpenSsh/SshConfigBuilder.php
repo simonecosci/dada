@@ -4,6 +4,7 @@ namespace App\Ssh\OpenSsh;
 
 use App\Enums\CredentialType;
 use App\Models\Host;
+use App\Ssh\RemoteCommandFailed;
 
 class SshConfigBuilder
 {
@@ -23,12 +24,15 @@ class SshConfigBuilder
         $blocks = [];
         $previous = null;
 
+        $knownHostsFile = $this->safe($knownHostsFile, 'il file known_hosts', null);
+        $controlDir = $this->safe($controlDir, 'la directory di controllo', null);
+
         foreach ($chain as $host) {
             $lines = [
                 'Host '.self::alias($host),
-                'HostName '.$host->hostname,
-                'Port '.$host->port,
-                'User '.$host->username,
+                'HostName '.$this->safe((string) $host->hostname, 'l\'hostname', $host),
+                'Port '.(int) $host->port,
+                'User '.$this->safe((string) $host->username, 'lo username', $host),
                 'HostKeyAlias '.self::alias($host),
             ];
 
@@ -37,15 +41,30 @@ class SshConfigBuilder
             }
 
             if ($host->credential?->type === CredentialType::Password) {
-                $lines[] = 'PreferredAuthentications password';
-                $lines[] = 'PubkeyAuthentication no';
-            } elseif (isset($identityFiles[$host->id])) {
-                $lines[] = 'IdentityFile '.$identityFiles[$host->id];
-                $lines[] = 'IdentitiesOnly yes';
+                array_push($lines,
+                    'PreferredAuthentications password',
+                    'PubkeyAuthentication no',
+                    'KbdInteractiveAuthentication no',
+                    'NumberOfPasswordPrompts 1',
+                );
+            } else {
+                // Gli hop a chiave non devono mai ripiegare su password: sshpass
+                // invierebbe la password del target al jump host.
+                if (isset($identityFiles[$host->id])) {
+                    $lines[] = 'IdentityFile '.$this->safe($identityFiles[$host->id], 'il file della chiave', $host);
+                    $lines[] = 'IdentitiesOnly yes';
+                }
+                array_push($lines,
+                    'PreferredAuthentications publickey',
+                    'PasswordAuthentication no',
+                    'KbdInteractiveAuthentication no',
+                    'BatchMode yes',
+                );
             }
 
             array_push($lines,
                 'UserKnownHostsFile '.$knownHostsFile,
+                'GlobalKnownHostsFile /dev/null',
                 'StrictHostKeyChecking accept-new',
                 'HashKnownHosts no',
                 'ConnectTimeout '.(int) config('dada.ssh.connect_timeout'),
@@ -60,5 +79,19 @@ class SshConfigBuilder
         }
 
         return implode("\n\n", $blocks)."\n";
+    }
+
+    /**
+     * Rifiuta valori che potrebbero iniettare direttive ssh_config o token (%).
+     */
+    private function safe(string $value, string $what, ?Host $host): string
+    {
+        if ($value === '' || preg_match('/[\s\x00-\x1F\x7F%"]/', $value)) {
+            $where = $host !== null ? " dell'host \"{$host->name}\"" : '';
+
+            throw new RemoteCommandFailed("Valore non valido per {$what}{$where}: spazi, caratteri di controllo, % e \" non sono ammessi.");
+        }
+
+        return $value;
     }
 }

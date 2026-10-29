@@ -16,3 +16,11 @@ it('returns a new instance with additional secrets', function () {
         ->and($base->mask('second-secret'))->toBe('second-secret')
         ->and($extended->mask('first-secret second-secret'))->toBe('****** ******');
 });
+
+it('masks each line of a multi-line secret', function () {
+    $pem = "-----BEGIN KEY-----\nAAAA1111\nBBBB2222\n-----END KEY-----";
+    $m = new SecretMasker([$pem]);
+
+    expect($m->mask("x AAAA1111\nBBBB2222 y"))->toBe("x ******\n****** y")
+        ->and($m->mask($pem))->toBe('******');
+});

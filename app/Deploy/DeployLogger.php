@@ -6,6 +6,7 @@ use App\Events\DeployRunLogged;
 use App\Models\DeployRun;
 use App\Models\DeployRunLog;
 use App\Models\DeploymentHost;
+use Throwable;
 
 class DeployLogger
 {
@@ -44,6 +45,13 @@ class DeployLogger
         foreach ($lines as $line) {
             $this->write('output', $dh, rtrim($line, "\r"));
         }
+
+        // Output senza newline (es. barre di avanzamento con solo \r): non accumulare all'infinito.
+        if (strlen($this->buffers[$key]) > self::MAX_MESSAGE_BYTES) {
+            $partial = rtrim($this->buffers[$key], "\r");
+            $this->buffers[$key] = '';
+            $this->write('output', $dh, $partial);
+        }
     }
 
     /** Emette le righe parziali ancora in buffer. */
@@ -60,10 +68,16 @@ class DeployLogger
         }
     }
 
+    /** Maschera un testo con gli stessi segreti del log (da usare per gli `error` salvati sul run). */
+    public function mask(string $text): string
+    {
+        return $this->masker->mask(mb_scrub($text));
+    }
+
     private function write(string $level, ?DeploymentHost $dh, string $message): void
     {
         // Il mascheramento avviene dopo aver ricomposto la riga: un segreto spezzato tra due chunk viene coperto.
-        $message = $this->masker->mask($message);
+        $message = $this->mask($message);
         if (strlen($message) > self::MAX_MESSAGE_BYTES) {
             $message = mb_strcut($message, 0, self::MAX_MESSAGE_BYTES).'…';
         }
@@ -76,6 +90,11 @@ class DeployLogger
             'created_at' => now(),
         ]);
 
-        DeployRunLogged::dispatch($this->run->id, $log);
+        // La persistenza è autoritativa: un Reverb irraggiungibile non deve interrompere il deploy.
+        try {
+            DeployRunLogged::dispatch($this->run->id, $log);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 }

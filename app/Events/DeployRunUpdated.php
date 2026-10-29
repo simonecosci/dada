@@ -8,12 +8,23 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
+use Throwable;
 
 class DeployRunUpdated implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets;
 
     public function __construct(public readonly DeployRun $run) {}
+
+    /** Dispatch che non fallisce se il broadcaster è irraggiungibile. */
+    public static function safeDispatch(DeployRun $run): void
+    {
+        try {
+            static::dispatch($run);
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
 
     /** @return list<Channel> */
     public function broadcastOn(): array

@@ -12,7 +12,18 @@ class SecretMasker
     /** @param  list<string>  $secrets */
     public function __construct(array $secrets)
     {
-        $secrets = array_filter($secrets, fn ($s) => is_string($s) && mb_strlen($s) >= 3);
+        // Un segreto multi-riga (chiave PEM, ...) compare nell'output riga per riga: registra anche ogni riga.
+        $expanded = [];
+        foreach ($secrets as $secret) {
+            $expanded[] = $secret;
+            if (is_string($secret) && preg_match('/[\r\n]/', $secret) === 1) {
+                foreach (preg_split('/\r\n|\r|\n/', $secret) as $line) {
+                    $expanded[] = trim($line);
+                }
+            }
+        }
+
+        $secrets = array_filter($expanded, fn ($s) => is_string($s) && mb_strlen($s) >= 3);
         $secrets = array_values(array_unique($secrets));
         usort($secrets, fn (string $a, string $b) => strlen($b) <=> strlen($a));
 

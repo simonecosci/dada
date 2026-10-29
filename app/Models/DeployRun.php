@@ -16,6 +16,7 @@ class DeployRun extends Model
     /** @use HasFactory<DeployRunFactory> */
     use HasFactory;
 
+    /** `error` va sempre mascherato con DeployLogger::mask() prima del salvataggio. */
     protected $guarded = [];
 
     protected function casts(): array

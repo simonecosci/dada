@@ -70,3 +70,63 @@ it('broadcasts the masked payload on the run channel', function () {
             && array_keys($e->broadcastWith()) === ['id', 'deployment_host_id', 'level', 'message', 'created_at'];
     });
 });
+
+it('keeps the log row and does not throw when the broadcaster fails', function () {
+    $broadcaster = new class extends Illuminate\Broadcasting\Broadcasters\Broadcaster
+    {
+        public function auth($request) {}
+
+        public function validAuthenticationResponse($request, $result) {}
+
+        public function broadcast(array $channels, $event, array $payload = []): void
+        {
+            throw new RuntimeException('reverb down');
+        }
+    };
+    Illuminate\Support\Facades\Broadcast::extend('boom', fn () => $broadcaster);
+    config(['broadcasting.default' => 'boom', 'broadcasting.connections.boom' => ['driver' => 'boom']]);
+
+    $run = DeployRun::factory()->create();
+    (new DeployLogger($run, new SecretMasker([])))->info(null, 'still saved');
+
+    expect($run->logs()->pluck('message')->all())->toBe(['still saved']);
+});
+
+it('exposes mask() using the same secrets', function () {
+    $log = new DeployLogger(DeployRun::factory()->create(), new SecretMasker(['hunter22']));
+
+    expect($log->mask('error: hunter22 refused'))->toBe('error: ****** refused');
+});
+
+it('masks multi-line secrets echoed line by line', function () {
+    Event::fake([DeployRunLogged::class]);
+    $run = DeployRun::factory()->create();
+    $log = new DeployLogger($run, new SecretMasker(["line-one\nline-two\nline-three"]));
+    $log->output(null, "line-one\nline-two\nline-three\n");
+
+    expect($run->logs()->pluck('message')->all())->toBe(['******', '******', '******']);
+});
+
+it('emits an oversized partial line without waiting for a newline', function () {
+    Event::fake([DeployRunLogged::class]);
+    $run = DeployRun::factory()->create();
+    $log = new DeployLogger($run, new SecretMasker(['progresssecret']));
+    $log->output(null, str_repeat("10%\r", 3000));
+    $log->output(null, 'progresssecret');
+    $log->flush();
+
+    $messages = $run->logs()->pluck('message');
+    expect($messages->count())->toBe(2)
+        ->and(strlen($messages[0]))->toBeLessThanOrEqual(8192 + 3)
+        ->and($messages[1])->toBe('******');
+});
+
+it('scrubs invalid utf-8 before persisting', function () {
+    Event::fake([DeployRunLogged::class]);
+    $run = DeployRun::factory()->create();
+    (new DeployLogger($run, new SecretMasker([])))->output(null, "bad \xFF\xFE bytes\n");
+
+    $message = $run->logs()->value('message');
+    expect(mb_check_encoding($message, 'UTF-8'))->toBeTrue()
+        ->and($message)->toStartWith('bad ')->toEndWith(' bytes');
+});

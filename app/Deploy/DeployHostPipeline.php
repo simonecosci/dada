@@ -115,7 +115,7 @@ class DeployHostPipeline
         $log->step($dh, 'Controllo dello spazio disco');
         $result = $this->exec($shell, $dh, $log, 'df -Pm "$(dirname '.ScriptRenderer::quote($dh->path).')" | awk \'NR==2{print $4}\'');
 
-        $free = trim($result->output);
+        $free = trim($result->stdout);
         if (preg_match('/\A\d+\z/', $free) !== 1) {
             throw new RuntimeException("impossibile leggere lo spazio libero su {$dh->path}");
         }

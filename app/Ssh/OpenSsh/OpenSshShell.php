@@ -106,10 +106,14 @@ class OpenSshShell implements RemoteShell
         $process = new Process($argv, null, $env, $stdin, $timeout ?? (int) config('dada.ssh.command_timeout'));
 
         $output = '';
+        $stdout = '';
 
         try {
-            $process->run(function (string $type, string $chunk) use (&$output, $onOutput): void {
+            $process->run(function (string $type, string $chunk) use (&$output, &$stdout, $onOutput): void {
                 $output .= $chunk;
+                if ($type === Process::OUT) {
+                    $stdout .= $chunk;
+                }
                 if ($onOutput !== null) {
                     $onOutput($chunk);
                 }
@@ -120,7 +124,7 @@ class OpenSshShell implements RemoteShell
             $this->recordNewHostKeys();
         }
 
-        $result = new ExecResult((int) $process->getExitCode(), $output);
+        $result = new ExecResult((int) $process->getExitCode(), $output, $stdout);
 
         if ($result->exitCode === 255) {
             throw $this->connectionFailure($command, $result);

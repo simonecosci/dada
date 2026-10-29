@@ -5,7 +5,7 @@ namespace App\Ssh;
 interface RemoteShell
 {
     /**
-     * Esegue $command (già completo di cd/sudo) e unisce stdout+stderr; $onOutput riceve chunk di testo.
+     * Esegue $command (già completo di cd/sudo) e unisce stdout+stderr in output (stdout resta anche separato); $onOutput riceve chunk di testo.
      *
      * @param  (callable(string): void)|null  $onOutput
      */

@@ -13,7 +13,7 @@ use Throwable;
  */
 class FakeRemoteShell implements RemoteShell
 {
-    /** @var list<array{pattern: string, exit: int, output: string}> */
+    /** @var list<array{pattern: string, exit: int, output: string, stderr: string}> */
     private array $expectations = [];
 
     /** @var list<string> */
@@ -35,10 +35,11 @@ class FakeRemoteShell implements RemoteShell
 
     /**
      * Risposta per i comandi che corrispondono alla regex $pattern (vince la prima registrata).
+     * $output è lo stdout; $stderr (opzionale) è anteposto nell'output unito, come rumore di ssh.
      */
-    public function expect(string $pattern, int $exit = 0, string $output = ''): static
+    public function expect(string $pattern, int $exit = 0, string $output = '', string $stderr = ''): static
     {
-        $this->expectations[] = ['pattern' => $pattern, 'exit' => $exit, 'output' => $output];
+        $this->expectations[] = ['pattern' => $pattern, 'exit' => $exit, 'output' => $output, 'stderr' => $stderr];
 
         return $this;
     }
@@ -64,11 +65,12 @@ class FakeRemoteShell implements RemoteShell
 
         foreach ($this->expectations as $expectation) {
             if (preg_match($expectation['pattern'], $command)) {
-                if ($onOutput !== null && $expectation['output'] !== '') {
-                    $onOutput($expectation['output']);
+                $merged = $expectation['stderr'].$expectation['output'];
+                if ($onOutput !== null && $merged !== '') {
+                    $onOutput($merged);
                 }
 
-                return new ExecResult($expectation['exit'], $expectation['output']);
+                return new ExecResult($expectation['exit'], $merged, $expectation['output']);
             }
         }
 

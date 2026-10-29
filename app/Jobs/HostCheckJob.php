@@ -59,6 +59,6 @@ class HostCheckJob implements ShouldQueue
             throw RemoteCommandFailed::from($command, $result);
         }
 
-        return trim($result->output);
+        return trim($result->stdout);
     }
 }

@@ -65,3 +65,16 @@ it('records uploaded files on the fake shell without recording a command', funct
         ->and($shell->files())->toBe(['/srv/app/.env' => ['contents' => 'A=1', 'mode' => 0600]])
         ->and($shell->commands())->toBe([]);
 });
+
+it('parses only stdout of each fact command', function () {
+    $fakes = new FakeRemoteShellFactory;
+    app()->instance(RemoteShellFactory::class, $fakes);
+    $host = Host::factory()->create();
+    $noise = "Warning: Permanently added 'dada-h1' (ED25519) to the list of known hosts.\n";
+    $fakes->shellFor($host)->expect('/uname/', 0, "Linux 6.8\n", $noise)->expect('/docker version/', 0, "27.3.1\n", $noise)
+        ->expect('/nproc/', 0, "4\n", $noise)->expect('/MemTotal/', 0, "7936\n", $noise)->expect('/df -Pm/', 0, "51200\n", $noise);
+
+    HostCheckJob::dispatchSync($host->id);
+
+    expect($host->fresh()->facts)->toBe(['os' => 'Linux 6.8', 'docker' => '27.3.1', 'cpus' => 4, 'memory_mb' => 7936, 'disk_free_mb' => 51200]);
+});

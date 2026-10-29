@@ -67,6 +67,8 @@ class SshConfigBuilder
                 'GlobalKnownHostsFile /dev/null',
                 'StrictHostKeyChecking accept-new',
                 'HashKnownHosts no',
+                // Niente "Warning: Permanently added ..." e simili su stderr.
+                'LogLevel ERROR',
                 'ConnectTimeout '.(int) config('dada.ssh.connect_timeout'),
                 'ServerAliveInterval 15',
                 'ControlMaster auto',

@@ -254,3 +254,14 @@ it('does not remove containers by label in swarm', function () {
         ->not->toContain('docker ps -aq')
         ->not->toContain('docker compose pull');
 });
+
+it('parses only stdout of the disk check, ignoring ssh warnings and banners on stderr', function () {
+    $fakes = fakeShells();
+    $dh = hostWithWordpress(['path' => '/srv/x']);
+    $run = DeployRun::factory()->for($dh->deployment)->create();
+    $fakes->shellFor($dh->host)->expect('/df -Pm/', 0, "50000\n", "Warning: Permanently added 'dada-h1' (ED25519) to the list of known hosts.\nWelcome to the bastion\n");
+
+    runPipeline($run, $dh, ['pull' => false, 'restart' => false]);
+
+    expect(DeploymentSnapshot::count())->toBe(1);
+});

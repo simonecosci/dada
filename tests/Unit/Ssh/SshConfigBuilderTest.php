@@ -76,3 +76,14 @@ it('rejects unsafe paths', function () {
 
     (new SshConfigBuilder)->build([$t], [], '/k/known hosts', '/k');
 })->throws(RemoteCommandFailed::class, 'Valore non valido');
+
+it('silences informational ssh messages on every hop so they never reach parsed output', function () {
+    $jump = Host::factory()->create();
+    $t = Host::factory()->for(Credential::factory()->password())->create(['jump_host_id' => $jump->id]);
+
+    $cfg = (new SshConfigBuilder)->build([$jump, $t], [$jump->id => '/k/a'], '/k/known_hosts', '/k');
+    [$jumpBlock, $targetBlock] = explode("Host dada-h{$t->id}", $cfg);
+
+    expect($jumpBlock)->toContain('LogLevel ERROR')
+        ->and($targetBlock)->toContain('LogLevel ERROR');
+});

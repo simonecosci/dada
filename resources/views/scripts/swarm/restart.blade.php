@@ -37,7 +37,8 @@ refresh_services() {
 
 case "$ACTION" in
   start|restart)
-    docker stack deploy -c docker-compose.yml --with-registry-auth --prune {!! $stack !!}
+    # --detach=false (Docker >= 26 sui manager swarm): attende la convergenza dei servizi prima degli init.
+    docker stack deploy --detach=false -c docker-compose.yml --with-registry-auth --prune {!! $stack !!}
     run_inits
     refresh_services
     ;;

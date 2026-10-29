@@ -100,7 +100,7 @@ it('renders swarm restart with init docker run and stack deploy', function () {
     expect($s)->toContain('while IFS= read -r line || [ -n "$line" ]; do [ -z "$line" ] && continue; export "$line"; done < .env')
         ->not->toContain('. ./.env')
         ->toContain("docker run --rm --network 'cliente-x_default'")
-        ->toContain("docker stack deploy -c docker-compose.yml --with-registry-auth --prune 'cliente-x'")
+        ->toContain("docker stack deploy --detach=false -c docker-compose.yml --with-registry-auth --prune 'cliente-x'")
         ->toContain("docker service update --force 'cliente-x_wp'")
         ->toContain("docker service update --force 'cliente-x_cron'")
         ->toContain('"wordpress:${WP_TAG-}"')
@@ -128,7 +128,7 @@ it('refreshes only services of installations that have inits', function () {
     $r = runBashScript(['restart.sh' => ScriptRenderer::restart($dh, collect([$b, $a]), $built)], 'restart.sh', ['restart']);
 
     expect($r['exit'])->toBe(0, $r['output'])->and($r['log'])->toBe(
-        "docker [stack] [deploy] [-c] [docker-compose.yml] [--with-registry-auth] [--prune] [s]\n".
+        "docker [stack] [deploy] [--detach=false] [-c] [docker-compose.yml] [--with-registry-auth] [--prune] [s]\n".
         "docker [run] [--rm] [--network] [s_default] [x]\n".
         "docker [service] [update] [--force] [s_svc-a]\n"
     );
@@ -145,7 +145,7 @@ it('runs swarm restart.sh without executing .env content', function () {
     expect($r['exit'])->toBe(0, $r['output'])
         ->and($r['files'])->not->toHaveKey('pwned')->not->toHaveKey('pwned2')
         ->and($r['log'])->toBe(
-            "docker [stack] [deploy] [-c] [docker-compose.yml] [--with-registry-auth] [--prune] [cliente-x]\n".
+            "docker [stack] [deploy] [--detach=false] [-c] [docker-compose.yml] [--with-registry-auth] [--prune] [cliente-x]\n".
             "docker [run] [--rm] [--network] [cliente-x_default] [wordpress:6.5] [wp] [core] [update-db]\n".
             "docker [service] [update] [--force] [cliente-x_wp]\n".
             "docker [service] [update] [--force] [cliente-x_cron]\n"

@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import { Head, Link, router, useForm } from "@inertiajs/vue3";
-import { computed } from "vue";
-import DeploymentController from "@/actions/App/Http/Controllers/Deployments/DeploymentController";
-import DeploymentHostController from "@/actions/App/Http/Controllers/Deployments/DeploymentHostController";
-import InstallationController from "@/actions/App/Http/Controllers/Deployments/InstallationController";
-import CodeEditor from "@/components/dada/CodeEditor.vue";
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import DeploymentController from '@/actions/App/Http/Controllers/Deployments/DeploymentController';
+import DeploymentHostController from '@/actions/App/Http/Controllers/Deployments/DeploymentHostController';
+import InstallationController from '@/actions/App/Http/Controllers/Deployments/InstallationController';
+import CodeEditor from '@/components/dada/CodeEditor.vue';
 import CommandsEditor, {
     type CommandRow,
-} from "@/components/dada/CommandsEditor.vue";
-import RestartControls from "@/components/dada/RestartControls.vue";
-import VariablesEditor from "@/components/dada/VariablesEditor.vue";
-import Heading from "@/components/Heading.vue";
-import InputError from "@/components/InputError.vue";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { variablesPayload, type VariableRow } from "@/lib/variables";
+} from '@/components/dada/CommandsEditor.vue';
+import RestartControls from '@/components/dada/RestartControls.vue';
+import VariablesEditor from '@/components/dada/VariablesEditor.vue';
+import Heading from '@/components/Heading.vue';
+import InputError from '@/components/InputError.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { variablesPayload, type VariableRow } from '@/lib/variables';
 
 const props = defineProps<{
     deployment: { id: number; name: string; slug: string };
@@ -38,7 +38,7 @@ const props = defineProps<{
 defineOptions({
     layout: {
         breadcrumbs: [
-            { title: "Deployment", href: DeploymentController.index() },
+            { title: 'Deployment', href: DeploymentController.index() },
         ],
     },
 });
@@ -56,7 +56,7 @@ const services = computed(() => {
     const names: string[] = [];
     let inServices = false;
 
-    for (const line of form.compose_yaml.split("\n")) {
+    for (const line of form.compose_yaml.split('\n')) {
         if (/^services:\s*$/.test(line)) {
             inServices = true;
         } else if (/^\S/.test(line)) {
@@ -76,10 +76,10 @@ const services = computed(() => {
 });
 
 const composeErrors = computed(() =>
-    form.errors.compose_yaml ? form.errors.compose_yaml.split("\n") : [],
+    form.errors.compose_yaml ? form.errors.compose_yaml.split('\n') : [],
 );
 const commandsErrors = computed(() =>
-    form.errors.commands ? form.errors.commands.split("\n") : [],
+    form.errors.commands ? form.errors.commands.split('\n') : [],
 );
 const errorMap = computed(() => form.errors as Record<string, string>);
 

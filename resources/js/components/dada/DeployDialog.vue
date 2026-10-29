@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { router } from "@inertiajs/vue3";
-import { computed, ref } from "vue";
-import { toast } from "vue-sonner";
-import DeployController from "@/actions/App/Http/Controllers/Deployments/DeployController";
-import InputError from "@/components/InputError.vue";
-import { Button } from "@/components/ui/button";
+import { router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { toast } from 'vue-sonner';
+import DeployController from '@/actions/App/Http/Controllers/Deployments/DeployController';
+import InputError from '@/components/InputError.vue';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogClose,
@@ -13,7 +13,7 @@ import {
     DialogFooter,
     DialogTitle,
     DialogTrigger,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 
 type HostOption = { id: number; name: string };
 type PlannedRemoval = {
@@ -32,7 +32,7 @@ const props = defineProps<{
 const open = ref(false);
 const pull = ref(true);
 const restart = ref(true);
-const target = ref<number | "all">(props.fixedHostId ?? "all");
+const target = ref<number | 'all'>(props.fixedHostId ?? 'all');
 const removals = ref<PlannedRemoval[] | null>(null);
 const error = ref<string>();
 const loading = ref(false);
@@ -44,7 +44,7 @@ const removalLines = computed(() =>
     (removals.value ?? []).map(
         (r) =>
             `${hostName(r.deployment_host_id)} · ${r.slug}` +
-            (r.services.length ? `: ${r.services.join(", ")}` : ""),
+            (r.services.length ? `: ${r.services.join(', ')}` : ''),
     ),
 );
 
@@ -56,7 +56,7 @@ function reset() {
 function csrfToken(): string {
     const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
 
-    return match ? decodeURIComponent(match[1]) : "";
+    return match ? decodeURIComponent(match[1]) : '';
 }
 
 async function submit(confirmRemovals = false) {
@@ -65,17 +65,17 @@ async function submit(confirmRemovals = false) {
 
     try {
         const response = await fetch(DeployController.url(props.deploymentId), {
-            method: "POST",
+            method: 'POST',
             headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-                "X-Requested-With": "XMLHttpRequest",
-                "X-XSRF-TOKEN": csrfToken(),
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-XSRF-TOKEN': csrfToken(),
             },
-            credentials: "same-origin",
+            credentials: 'same-origin',
             body: JSON.stringify({
                 deployment_host_id:
-                    target.value === "all" ? null : target.value,
+                    target.value === 'all' ? null : target.value,
                 pull: pull.value,
                 restart: restart.value,
                 confirm_removals: confirmRemovals,
@@ -94,17 +94,17 @@ async function submit(confirmRemovals = false) {
 
         if (response.status === 409) {
             open.value = false;
-            toast.error(body.message ?? "Esecuzione già in corso");
+            toast.error(body.message ?? 'Esecuzione già in corso');
         } else if (response.status === 422 && Array.isArray(body.removals)) {
             removals.value = body.removals as PlannedRemoval[];
         } else if (response.status === 422) {
             const errors = Object.values(body.errors ?? {}).flat() as string[];
-            error.value = errors[0] ?? body.message ?? "Richiesta non valida.";
+            error.value = errors[0] ?? body.message ?? 'Richiesta non valida.';
         } else {
-            error.value = "Impossibile avviare il deploy.";
+            error.value = 'Impossibile avviare il deploy.';
         }
     } catch {
-        error.value = "Impossibile avviare il deploy.";
+        error.value = 'Impossibile avviare il deploy.';
     } finally {
         loading.value = false;
     }

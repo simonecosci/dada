@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from "@inertiajs/vue3";
-import { computed } from "vue";
-import DeploymentController from "@/actions/App/Http/Controllers/Deployments/DeploymentController";
-import DeploymentHostController from "@/actions/App/Http/Controllers/Deployments/DeploymentHostController";
-import InstallationController from "@/actions/App/Http/Controllers/Deployments/InstallationController";
-import Heading from "@/components/Heading.vue";
-import InputError from "@/components/InputError.vue";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import DeploymentController from '@/actions/App/Http/Controllers/Deployments/DeploymentController';
+import DeploymentHostController from '@/actions/App/Http/Controllers/Deployments/DeploymentHostController';
+import InstallationController from '@/actions/App/Http/Controllers/Deployments/InstallationController';
+import Heading from '@/components/Heading.vue';
+import InputError from '@/components/InputError.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type ProjectOption = {
     id: number;
@@ -26,16 +26,16 @@ const props = defineProps<{
 defineOptions({
     layout: {
         breadcrumbs: [
-            { title: "Deployment", href: DeploymentController.index() },
+            { title: 'Deployment', href: DeploymentController.index() },
         ],
     },
 });
 
 const form = useForm<{
-    project_id: number | "";
-    project_version_id: number | "";
+    project_id: number | '';
+    project_version_id: number | '';
     slug: string;
-}>({ project_id: "", project_version_id: "", slug: "" });
+}>({ project_id: '', project_version_id: '', slug: '' });
 
 const project = computed(() =>
     props.projects.find((p) => p.id === form.project_id),
@@ -49,7 +49,7 @@ function submit() {
 }
 
 const selectClass =
-    "h-9 rounded-md border border-input bg-background px-3 text-sm";
+    'h-9 rounded-md border border-input bg-background px-3 text-sm';
 </script>
 
 <template>

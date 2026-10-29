@@ -81,13 +81,9 @@ const secretLabel = computed(() =>
                     id="type"
                     name="type"
                     v-model="type"
-                    class="border-input bg-background h-9 rounded-md border px-3 text-sm"
+                    class="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 >
-                    <option
-                        v-for="t in types"
-                        :key="t.value"
-                        :value="t.value"
-                    >
+                    <option v-for="t in types" :key="t.value" :value="t.value">
                         {{ t.label }}
                     </option>
                 </select>
@@ -131,7 +127,7 @@ const secretLabel = computed(() =>
                     id="secret"
                     name="secret"
                     rows="8"
-                    class="border-input bg-background rounded-md border px-3 py-2 font-mono text-sm"
+                    class="rounded-md border border-input bg-background px-3 py-2 font-mono text-sm"
                     autocomplete="off"
                 />
                 <Input
@@ -152,7 +148,7 @@ const secretLabel = computed(() =>
                     name="passphrase"
                     autocomplete="new-password"
                 />
-                <p class="text-muted-foreground text-xs">
+                <p class="text-xs text-muted-foreground">
                     Le chiavi con passphrase non sono supportate in questa
                     versione.
                 </p>

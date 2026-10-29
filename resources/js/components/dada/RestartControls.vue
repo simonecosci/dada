@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { router } from "@inertiajs/vue3";
-import { ref } from "vue";
-import RestartController from "@/actions/App/Http/Controllers/Deployments/RestartController";
-import { Button } from "@/components/ui/button";
+import { router } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import RestartController from '@/actions/App/Http/Controllers/Deployments/RestartController';
+import { Button } from '@/components/ui/button';
 
-type Action = "start" | "stop" | "restart";
+type Action = 'start' | 'stop' | 'restart';
 
 const props = defineProps<{
     deploymentHostId: number;
@@ -15,9 +15,9 @@ const props = defineProps<{
 const processing = ref(false);
 
 const labels: Record<Action, string> = {
-    start: "Avvia",
-    stop: "Ferma",
-    restart: "Riavvia",
+    start: 'Avvia',
+    stop: 'Ferma',
+    restart: 'Riavvia',
 };
 
 function target(): string {
@@ -31,7 +31,7 @@ function target(): string {
 }
 
 function run(action: Action) {
-    if (action === "stop" && !confirm(`Fermare ${target()}?`)) {
+    if (action === 'stop' && !confirm(`Fermare ${target()}?`)) {
         return;
     }
 

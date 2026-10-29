@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import { Head, Link, router, useForm } from "@inertiajs/vue3";
-import { computed, ref, watch } from "vue";
-import DeploymentController from "@/actions/App/Http/Controllers/Deployments/DeploymentController";
-import DeploymentHostController from "@/actions/App/Http/Controllers/Deployments/DeploymentHostController";
-import InstallationController from "@/actions/App/Http/Controllers/Deployments/InstallationController";
-import CodeEditor from "@/components/dada/CodeEditor.vue";
-import DeployDialog from "@/components/dada/DeployDialog.vue";
-import RestartControls from "@/components/dada/RestartControls.vue";
-import RunsTable from "@/components/dada/RunsTable.vue";
-import type { RunSummary } from "@/lib/runs";
-import VariablesEditor from "@/components/dada/VariablesEditor.vue";
-import Heading from "@/components/Heading.vue";
-import InputError from "@/components/InputError.vue";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { variablesPayload, type VariableRow } from "@/lib/variables";
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
+import DeploymentController from '@/actions/App/Http/Controllers/Deployments/DeploymentController';
+import DeploymentHostController from '@/actions/App/Http/Controllers/Deployments/DeploymentHostController';
+import InstallationController from '@/actions/App/Http/Controllers/Deployments/InstallationController';
+import CodeEditor from '@/components/dada/CodeEditor.vue';
+import DeployDialog from '@/components/dada/DeployDialog.vue';
+import RestartControls from '@/components/dada/RestartControls.vue';
+import RunsTable from '@/components/dada/RunsTable.vue';
+import type { RunSummary } from '@/lib/runs';
+import VariablesEditor from '@/components/dada/VariablesEditor.vue';
+import Heading from '@/components/Heading.vue';
+import InputError from '@/components/InputError.vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { variablesPayload, type VariableRow } from '@/lib/variables';
 
 type InstallationRow = {
     id: number;
@@ -48,20 +48,20 @@ const props = defineProps<{
 defineOptions({
     layout: {
         breadcrumbs: [
-            { title: "Deployment", href: DeploymentController.index() },
+            { title: 'Deployment', href: DeploymentController.index() },
         ],
     },
 });
 
 const tabs = [
-    { key: "installations", label: "Installazioni" },
-    { key: "variables", label: "Variabili host" },
-    { key: "registries", label: "Registry" },
-    { key: "template", label: "Template compose" },
-    { key: "files", label: "File" },
-    { key: "runs", label: "Esecuzioni" },
+    { key: 'installations', label: 'Installazioni' },
+    { key: 'variables', label: 'Variabili host' },
+    { key: 'registries', label: 'Registry' },
+    { key: 'template', label: 'Template compose' },
+    { key: 'files', label: 'File' },
+    { key: 'runs', label: 'Esecuzioni' },
 ] as const;
-const tab = ref<(typeof tabs)[number]["key"]>("installations");
+const tab = ref<(typeof tabs)[number]['key']>('installations');
 
 const hostParams = computed(
     () => [props.deployment.id, props.deploymentHost.id] as [number, number],
@@ -138,7 +138,7 @@ const templateForm = useForm({
 });
 const templateErrors = computed(() =>
     templateForm.errors.compose_template
-        ? templateForm.errors.compose_template.split("\n")
+        ? templateForm.errors.compose_template.split('\n')
         : [],
 );
 
@@ -167,13 +167,13 @@ async function loadPreview(reveal = false) {
 
     try {
         const response = await fetch(
-            `/deployment-hosts/${props.deploymentHost.id}/preview${reveal ? "?reveal=1" : ""}`,
+            `/deployment-hosts/${props.deploymentHost.id}/preview${reveal ? '?reveal=1' : ''}`,
             {
                 headers: {
-                    Accept: "application/json",
-                    "X-Requested-With": "XMLHttpRequest",
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
-                credentials: "same-origin",
+                credentials: 'same-origin',
             },
         );
 
@@ -198,7 +198,7 @@ async function loadPreview(reveal = false) {
 }
 
 watch(tab, (value) => {
-    if (value === "files") {
+    if (value === 'files') {
         loadPreview();
     }
 });
@@ -206,15 +206,15 @@ watch(tab, (value) => {
 const fileNames = computed(() => Object.keys(preview.value?.files ?? {}));
 const fileContents = computed(() =>
     selectedFile.value === null
-        ? ""
-        : (preview.value?.files[selectedFile.value] ?? ""),
+        ? ''
+        : (preview.value?.files[selectedFile.value] ?? ''),
 );
-const fileLanguage = computed<"yaml" | "shell" | "plaintext">(() => {
-    if (selectedFile.value?.endsWith(".yml")) {
-        return "yaml";
+const fileLanguage = computed<'yaml' | 'shell' | 'plaintext'>(() => {
+    if (selectedFile.value?.endsWith('.yml')) {
+        return 'yaml';
     }
 
-    return selectedFile.value?.endsWith(".sh") ? "shell" : "plaintext";
+    return selectedFile.value?.endsWith('.sh') ? 'shell' : 'plaintext';
 });
 
 function destroy() {
@@ -242,7 +242,10 @@ function destroy() {
                     v-if="canOperate"
                     :deployment-id="deployment.id"
                     :hosts="[
-                        { id: deploymentHost.id, name: deploymentHost.host.name },
+                        {
+                            id: deploymentHost.id,
+                            name: deploymentHost.host.name,
+                        },
                     ]"
                     :fixed-host-id="deploymentHost.id"
                 />
@@ -385,7 +388,7 @@ function destroy() {
                 data-test="unused-variables"
             >
                 Variabili non più dichiarate da nessuna versione installata:
-                <strong>{{ unused.join(", ") }}</strong
+                <strong>{{ unused.join(', ') }}</strong
                 >. Puoi rimuoverle se non servono più.
             </p>
             <VariablesEditor

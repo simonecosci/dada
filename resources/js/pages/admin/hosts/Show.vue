@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { Head, Link, router } from "@inertiajs/vue3";
-import HostController from "@/actions/App/Http/Controllers/Admin/HostController";
-import Heading from "@/components/Heading.vue";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Head, Link, router } from '@inertiajs/vue3';
+import HostController from '@/actions/App/Http/Controllers/Admin/HostController';
+import Heading from '@/components/Heading.vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 type ShownHost = {
     id: number;
@@ -51,7 +51,7 @@ defineOptions({
     layout: {
         breadcrumbs: [
             {
-                title: "Host",
+                title: 'Host',
                 href: HostController.index(),
             },
         ],
@@ -78,10 +78,10 @@ defineOptions({
             <dd>{{ host.credential?.name }} ({{ host.credential?.type }})</dd>
 
             <dt class="text-muted-foreground">Jump host</dt>
-            <dd>{{ host.jump_host?.name ?? "Nessuno" }}</dd>
+            <dd>{{ host.jump_host?.name ?? 'Nessuno' }}</dd>
 
             <dt class="text-muted-foreground">Prefisso sudo</dt>
-            <dd>{{ host.sudo || "Nessuno" }}</dd>
+            <dd>{{ host.sudo || 'Nessuno' }}</dd>
 
             <dt class="text-muted-foreground">Raggiungibilità</dt>
             <dd>
@@ -96,7 +96,7 @@ defineOptions({
             </dd>
 
             <dt class="text-muted-foreground">Ultima verifica</dt>
-            <dd>{{ host.checked_at ?? "Mai" }}</dd>
+            <dd>{{ host.checked_at ?? 'Mai' }}</dd>
 
             <dt class="text-muted-foreground">Chiave host</dt>
             <dd>
@@ -105,7 +105,7 @@ defineOptions({
                     <code
                         v-for="fingerprint in host.host_key_fingerprints"
                         :key="fingerprint"
-                        class="text-muted-foreground block font-mono text-xs break-all"
+                        class="block font-mono text-xs break-all text-muted-foreground"
                         >{{ fingerprint }}</code
                     >
                 </template>
@@ -117,9 +117,9 @@ defineOptions({
             <h2 class="mb-2 text-sm font-medium">Facts</h2>
             <pre
                 v-if="host.facts"
-                class="bg-muted overflow-x-auto rounded-lg p-3 text-xs"
+                class="overflow-x-auto rounded-lg bg-muted p-3 text-xs"
                 >{{ JSON.stringify(host.facts, null, 2) }}</pre>
-            <p v-else class="text-muted-foreground text-sm">
+            <p v-else class="text-sm text-muted-foreground">
                 Nessun dato raccolto.
             </p>
         </div>

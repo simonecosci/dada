@@ -15,13 +15,13 @@ php artisan test
 
 L'immagine (`ghcr.io/simonecosci/dada`) si avvia con `DADA_ROLE=web|worker|scheduler|reverb|all` (default `all`):
 
-| Ruolo | Processi |
-| --- | --- |
-| `web` | nginx + php-fpm sulla porta 8000 (proxy websocket `/app` e `/apps` verso `REVERB_UPSTREAM`, default `127.0.0.1:8080`) |
-| `worker` | `php artisan horizon` (code `default` e `deploy`) |
-| `scheduler` | `php artisan schedule:work` |
-| `reverb` | `php artisan reverb:start --host=0.0.0.0 --port=8080` |
-| `all` | tutti i precedenti nello stesso container |
+| Ruolo       | Processi                                                                                                              |
+| ----------- | --------------------------------------------------------------------------------------------------------------------- |
+| `web`       | nginx + php-fpm sulla porta 8000 (proxy websocket `/app` e `/apps` verso `REVERB_UPSTREAM`, default `127.0.0.1:8080`) |
+| `worker`    | `php artisan horizon` (code `default` e `deploy`)                                                                     |
+| `scheduler` | `php artisan schedule:work`                                                                                           |
+| `reverb`    | `php artisan reverb:start --host=0.0.0.0 --port=8080`                                                                 |
+| `all`       | tutti i precedenti nello stesso container                                                                             |
 
 All'avvio l'entrypoint genera la configurazione nginx, esegue `php artisan migrate --force` (solo se `DADA_MIGRATE=true`; default `true` per `web` e `all`, `false` per gli altri ruoli), esegue `php artisan optimize` e avvia `supervisord` in foreground.
 

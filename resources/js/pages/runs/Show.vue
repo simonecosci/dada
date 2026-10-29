@@ -97,7 +97,9 @@ useEcho<{
             >
                 {{ h.name }}
                 <Badge
-                    :variant="h.status === 'failed' ? 'destructive' : 'secondary'"
+                    :variant="
+                        h.status === 'failed' ? 'destructive' : 'secondary'
+                    "
                 >
                     {{ statusLabels[h.status] }}
                 </Badge>

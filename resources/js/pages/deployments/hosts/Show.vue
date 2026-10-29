@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from "@inertiajs/vue3";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import DeploymentController from "@/actions/App/Http/Controllers/Deployments/DeploymentController";
 import DeploymentHostController from "@/actions/App/Http/Controllers/Deployments/DeploymentHostController";
 import InstallationController from "@/actions/App/Http/Controllers/Deployments/InstallationController";
@@ -142,6 +142,75 @@ function saveTemplate() {
         preserveScroll: true,
     });
 }
+
+// File generati (anteprima)
+type Preview = {
+    files: Record<string, string>;
+    errors: string[];
+    warnings: string[];
+    missingRequired: string[];
+};
+const preview = ref<Preview | null>(null);
+const previewLoading = ref(false);
+const previewFailed = ref(false);
+const revealed = ref(false);
+const selectedFile = ref<string | null>(null);
+
+async function loadPreview(reveal = false) {
+    previewLoading.value = true;
+    previewFailed.value = false;
+
+    try {
+        const response = await fetch(
+            `/deployment-hosts/${props.deploymentHost.id}/preview${reveal ? "?reveal=1" : ""}`,
+            {
+                headers: {
+                    Accept: "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+                credentials: "same-origin",
+            },
+        );
+
+        if (!response.ok) {
+            throw new Error(String(response.status));
+        }
+
+        preview.value = (await response.json()) as Preview;
+        revealed.value = reveal;
+
+        if (
+            selectedFile.value === null ||
+            !(selectedFile.value in preview.value.files)
+        ) {
+            selectedFile.value = Object.keys(preview.value.files)[0] ?? null;
+        }
+    } catch {
+        previewFailed.value = true;
+    } finally {
+        previewLoading.value = false;
+    }
+}
+
+watch(tab, (value) => {
+    if (value === "files") {
+        loadPreview();
+    }
+});
+
+const fileNames = computed(() => Object.keys(preview.value?.files ?? {}));
+const fileContents = computed(() =>
+    selectedFile.value === null
+        ? ""
+        : (preview.value?.files[selectedFile.value] ?? ""),
+);
+const fileLanguage = computed<"yaml" | "shell" | "plaintext">(() => {
+    if (selectedFile.value?.endsWith(".yml")) {
+        return "yaml";
+    }
+
+    return selectedFile.value?.endsWith(".sh") ? "shell" : "plaintext";
+});
 
 function destroy() {
     if (
@@ -384,6 +453,93 @@ function destroy() {
                     Salva template
                 </Button>
             </div>
+        </div>
+
+        <div v-else-if="tab === 'files'" class="flex flex-col gap-4">
+            <div class="flex flex-wrap items-center gap-2">
+                <Button
+                    v-if="canReveal"
+                    variant="outline"
+                    size="sm"
+                    :disabled="previewLoading || revealed"
+                    data-test="reveal-preview"
+                    @click="loadPreview(true)"
+                >
+                    Mostra segreti
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="previewLoading"
+                    data-test="reload-preview"
+                    @click="loadPreview(revealed)"
+                >
+                    Ricarica
+                </Button>
+            </div>
+
+            <p v-if="previewFailed" class="text-sm text-red-600">
+                Impossibile caricare l'anteprima.
+            </p>
+            <p
+                v-else-if="previewLoading && preview === null"
+                class="text-sm text-muted-foreground"
+            >
+                Caricamento…
+            </p>
+
+            <template v-if="preview">
+                <ul
+                    v-if="preview.errors.length"
+                    class="list-disc rounded-md border border-red-500/50 bg-red-500/10 p-3 pl-7 text-sm text-red-700 dark:text-red-400"
+                    data-test="preview-errors"
+                >
+                    <li v-for="e in preview.errors" :key="e">{{ e }}</li>
+                </ul>
+                <ul
+                    v-if="preview.missingRequired.length"
+                    class="list-disc rounded-md border border-orange-500/50 bg-orange-500/10 p-3 pl-7 text-sm text-orange-700 dark:text-orange-400"
+                    data-test="preview-missing"
+                >
+                    <li v-for="m in preview.missingRequired" :key="m">
+                        Variabile obbligatoria mancante: {{ m }}
+                    </li>
+                </ul>
+                <ul
+                    v-if="preview.warnings.length"
+                    class="list-disc rounded-md border border-yellow-500/50 bg-yellow-500/10 p-3 pl-7 text-sm text-yellow-700 dark:text-yellow-400"
+                    data-test="preview-warnings"
+                >
+                    <li v-for="w in preview.warnings" :key="w">{{ w }}</li>
+                </ul>
+
+                <p
+                    v-if="fileNames.length === 0"
+                    class="text-sm text-muted-foreground"
+                >
+                    Nessun file generato.
+                </p>
+                <div v-else class="grid gap-4 md:grid-cols-[14rem_1fr]">
+                    <ul class="flex flex-col gap-1" data-test="preview-files">
+                        <li v-for="name in fileNames" :key="name">
+                            <button
+                                type="button"
+                                class="w-full rounded-md px-3 py-1.5 text-left font-mono text-sm hover:bg-muted"
+                                :class="{ 'bg-muted': name === selectedFile }"
+                                @click="selectedFile = name"
+                            >
+                                {{ name }}
+                            </button>
+                        </li>
+                    </ul>
+                    <CodeEditor
+                        :key="`${selectedFile}-${revealed}`"
+                        :model-value="fileContents"
+                        :language="fileLanguage"
+                        readonly
+                    />
+                </div>
+            </template>
         </div>
 
         <p v-else class="text-sm text-muted-foreground">Disponibile a breve</p>

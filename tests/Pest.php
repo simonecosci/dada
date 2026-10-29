@@ -5,6 +5,7 @@ use App\Generation\ComposeBuilder;
 use App\Generation\EffectiveVariables;
 use App\Models\DeploymentHost;
 use App\Models\Installation;
+use App\Variables\VariableSync;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
@@ -156,4 +157,27 @@ function assertBashSyntax(string $script): void
     @unlink($file);
 
     expect($process->getExitCode())->toBe(0, 'bash -n: '.$process->getErrorOutput());
+}
+
+/**
+ * Host compose con installazione 'wp' (servizio wp, immagine wordpress:${WP_TAG}),
+ * variabile container segreta DB_PASSWORD='pw-123' e variabile compose WP_TAG='6'.
+ *
+ * @param  array<string, mixed>  $dhAttributes
+ * @param  array<string, mixed>  $hostAttributes  attributi dell'installazione
+ */
+function hostWithWordpress(array $dhAttributes = [], array $hostAttributes = []): DeploymentHost
+{
+    $dh = DeploymentHost::factory()->create(['orchestrator' => 'compose', 'stack_name' => 'cliente-x', ...$dhAttributes]);
+    $inst = Installation::factory()->for($dh)->create([
+        'slug' => 'wp',
+        'compose' => ['services' => ['wp' => ['image' => 'wordpress:${WP_TAG}']]],
+        ...$hostAttributes,
+    ]);
+    VariableSync::sync($inst, [
+        ['key' => 'DB_PASSWORD', 'scope' => 'container', 'secret' => true, 'default' => 'pw-123'],
+        ['key' => 'WP_TAG', 'scope' => 'compose', 'default' => '6'],
+    ], allowHostGlobal: false);
+
+    return $dh->refresh();
 }

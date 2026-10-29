@@ -9,6 +9,7 @@ use App\Http\Controllers\Deployments\DeploymentController;
 use App\Http\Controllers\Deployments\DeploymentHostController;
 use App\Http\Controllers\Deployments\InstallationController;
 use App\Http\Controllers\Deployments\MemberController;
+use App\Http\Controllers\Deployments\PreviewController;
 use App\Http\Controllers\VariableRevealController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('deployments/{deployment}/hosts/{deploymentHost}/variables', [DeploymentHostController::class, 'variables'])->name('deployments.hosts.variables.update');
     Route::put('deployments/{deployment}/hosts/{deploymentHost}/registries', [DeploymentHostController::class, 'registries'])->name('deployments.hosts.registries.update');
 
+    Route::get('deployment-hosts/{deploymentHost}/preview', PreviewController::class)->name('hosts.preview');
     Route::get('deployment-hosts/{deploymentHost}/installations/create', [InstallationController::class, 'create'])->name('hosts.installations.create');
     Route::post('deployment-hosts/{deploymentHost}/installations', [InstallationController::class, 'store'])->name('hosts.installations.store');
     Route::put('deployment-hosts/{deploymentHost}/installations/order', [InstallationController::class, 'reorder'])->name('hosts.installations.reorder');

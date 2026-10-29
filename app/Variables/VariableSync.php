@@ -30,7 +30,7 @@ class VariableSync
             }
             $owner->variables()->reorder()->whereNotIn('id', $keep)->delete();
 
-            // Libera le chiavi che cambiano, così scambi e catene di rinomine non violano l'unicità.
+            // Libera le chiavi che cambiano, cosÃ¬ scambi e catene di rinomine non violano l'unicitÃ .
             foreach ($rows as $row) {
                 $current = isset($row['id']) ? $existing->get($row['id']) : null;
                 if ($current !== null && $current->key !== $row['key']) {

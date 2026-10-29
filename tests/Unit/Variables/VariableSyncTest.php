@@ -51,3 +51,35 @@ it('exposes non-secret values for clients', function () {
     $var = Variable::factory()->create(['default' => 'x']);
     expect(VariableData::forClient($var))->toMatchArray(['default' => 'x', 'has_default' => true]);
 });
+
+it('swaps and chains key renames within one payload', function () {
+    $v = ProjectVersion::factory()->create();
+    VariableSync::sync($v, [
+        ['key' => 'A', 'scope' => 'compose', 'default' => 'a'],
+        ['key' => 'B', 'scope' => 'compose', 'default' => 'b'],
+        ['key' => 'C', 'scope' => 'compose', 'default' => 'c'],
+    ]);
+    $ids = $v->variables()->pluck('id', 'key');
+    VariableSync::sync($v, [
+        ['id' => $ids['A'], 'key' => 'B', 'scope' => 'compose', 'default' => 'a'],
+        ['id' => $ids['B'], 'key' => 'A', 'scope' => 'compose', 'default' => 'b'],
+        ['id' => $ids['C'], 'key' => 'D', 'scope' => 'compose', 'default' => 'c'],
+    ]);
+    $now = $v->variables()->get();
+    expect($now->pluck('key')->all())->toBe(['B', 'A', 'D']);
+    expect($now->pluck('id')->all())->toBe([$ids['A'], $ids['B'], $ids['C']]);
+    expect($now->pluck('default')->all())->toBe(['a', 'b', 'c']);
+});
+
+it('rejects keys differing only by case', function () {
+    $v = ProjectVersion::factory()->create();
+    expect(fn () => VariableSync::sync($v, [['key' => 'Abc', 'scope' => 'compose'], ['key' => 'aBC', 'scope' => 'compose']]))
+        ->toThrow(ValidationException::class);
+});
+
+it('deletes variables when the owner is deleted', function () {
+    $v = ProjectVersion::factory()->create();
+    VariableSync::sync($v, [['key' => 'A', 'scope' => 'compose']]);
+    $v->delete();
+    expect(Variable::count())->toBe(0);
+});

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\VersionStatus;
+use App\Models\Concerns\HasVariables;
 use Database\Factories\ProjectVersionFactory;
 use DomainException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ProjectVersion extends Model
 {
     /** @use HasFactory<ProjectVersionFactory> */
-    use HasFactory;
+    use HasFactory, HasVariables;
 
     protected $guarded = [];
 

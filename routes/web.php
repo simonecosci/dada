@@ -3,12 +3,14 @@
 use App\Http\Controllers\Admin\CredentialController;
 use App\Http\Controllers\Admin\HostController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\VariableRevealController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
+    Route::post('variables/{variable}/reveal', VariableRevealController::class)->name('variables.reveal');
 });
 
 Route::middleware(['auth', 'verified', 'can:admin'])->prefix('admin')->name('admin.')->group(function () {

@@ -148,7 +148,7 @@ class ComposeBuilder
             $sections['networks']['default'] = ['driver' => 'overlay', 'attachable' => true];
         }
 
-        $compose = ['name' => $dh->stack_name, 'services' => $services];
+        $compose = $swarm ? ['services' => $services] : ['name' => $dh->stack_name, 'services' => $services];
         foreach ($sections as $section => $declared) {
             if ($declared !== []) {
                 $compose[$section] = $declared;
@@ -206,11 +206,12 @@ class ComposeBuilder
                     continue; // volume anonimo
                 }
                 $source = explode(':', $volume, 2)[0];
-                if ($source !== '' && ! str_contains($source, '/') && ! in_array($source[0], ['.', '/', '~'], true)) {
+                if ($source !== '' && ! str_contains($source, '$') && ! str_contains($source, '/') && ! in_array($source[0], ['.', '/', '~'], true)) {
                     $names[] = $source;
                 }
             } elseif (is_array($volume) && ($volume['type'] ?? null) === 'volume'
-                && isset($volume['source']) && is_string($volume['source']) && $volume['source'] !== '') {
+                && isset($volume['source']) && is_string($volume['source']) && $volume['source'] !== ''
+                && ! str_contains($volume['source'], '$')) {
                 $names[] = $volume['source'];
             }
         }

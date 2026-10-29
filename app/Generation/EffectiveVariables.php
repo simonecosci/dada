@@ -95,7 +95,7 @@ class EffectiveVariables
             $this->containerEnv[$installation->id] = [];
 
             foreach ($installation->variables as $variable) {
-                $this->track($variable, $installation->slug);
+                $this->track($variable, $installation->slug, ! ($variable->scope === VariableScope::Compose && array_key_exists($variable->key, $hostGlobal)));
                 $value = $variable->effectiveValue();
 
                 if ($variable->scope === VariableScope::Container) {
@@ -127,17 +127,17 @@ class EffectiveVariables
             return;
         }
 
-        if ($this->dotEnv[$key] !== $value && ! isset($conflicts[$key.'|'.$slug])) {
+        if (($this->dotEnv[$key] ?? '') !== ($value ?? '') && ! isset($conflicts[$key.'|'.$slug])) {
             $conflicts[$key.'|'.$slug] = true;
             $this->errors[] = "{$key}: valori diversi tra {$composeOwner[$key]} e {$slug}, spostala tra le variabili dell'host";
         }
     }
 
-    private function track(Variable $variable, string $owner): void
+    private function track(Variable $variable, string $owner, bool $checkRequired = true): void
     {
         $value = $variable->effectiveValue();
 
-        if ($variable->required && ($value === null || $value === '')) {
+        if ($checkRequired && $variable->required && ($value === null || $value === '')) {
             $this->missingRequired[] = "{$owner}: {$variable->key}";
         }
 

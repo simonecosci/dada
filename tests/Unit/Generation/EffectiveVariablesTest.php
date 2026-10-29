@@ -89,3 +89,22 @@ it('exposes only non-empty secret values', function () {
 
     expect(EffectiveVariables::for($dh)->secretValues())->toBe(['pw-123']);
 });
+
+it('does not report a required compose variable shadowed by a host-global one', function () {
+    $dh = DeploymentHost::factory()->create();
+    VariableSync::sync($dh, [['key' => 'APP_PORT', 'scope' => 'host-global', 'default' => '1']]);
+    $inst = Installation::factory()->for($dh)->create(['slug' => 'wp']);
+    VariableSync::sync($inst, [['key' => 'APP_PORT', 'scope' => 'compose', 'required' => true]], allowHostGlobal: false);
+
+    expect(EffectiveVariables::for($dh)->missingRequired())->toBe([]);
+});
+
+it('treats null and empty compose values as equal when checking conflicts', function () {
+    $dh = DeploymentHost::factory()->create();
+    $one = Installation::factory()->for($dh)->create(['slug' => 'one', 'order' => 1]);
+    $two = Installation::factory()->for($dh)->create(['slug' => 'two', 'order' => 2]);
+    VariableSync::sync($one, [['key' => 'K', 'scope' => 'compose']], allowHostGlobal: false);
+    VariableSync::sync($two, [['key' => 'K', 'scope' => 'compose', 'use_default' => false, 'value' => '']], allowHostGlobal: false);
+
+    expect(EffectiveVariables::for($dh)->errors())->toBe([]);
+});

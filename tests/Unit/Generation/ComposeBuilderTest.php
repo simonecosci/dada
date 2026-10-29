@@ -56,7 +56,8 @@ it('moves init services out of the stack in swarm and makes default network atta
 
     $b = buildFor($dh);
 
-    expect($b->compose['services'])->not->toHaveKey('migrate')
+    expect($b->compose)->not->toHaveKey('name')
+        ->and($b->compose['services'])->not->toHaveKey('migrate')
         ->and($b->compose['services'])->toHaveKey('wp')
         ->and($b->initServices['wp'])->toHaveKey('migrate')
         ->and($b->initServices['wp']['migrate'])->not->toHaveKey('x-dada')
@@ -140,4 +141,17 @@ it('merges declarations, normalizes empty ones to null and flags conflicting def
     $dh->unsetRelation('installations');
 
     expect(fn () => buildFor($dh))->toThrow(GenerationFailed::class, 'va');
+});
+
+it('does not validate volume sources that contain variable interpolation', function () {
+    $dh = DeploymentHost::factory()->create();
+    Installation::factory()->for($dh)->create(['slug' => 'wp', 'compose' => ['services' => [
+        'a' => ['image' => 'x', 'volumes' => [
+            '${DATA_DIR:-./data}:/data',
+            '${WP_DATA}:/var/www',
+            ['type' => 'volume', 'source' => '${LONG_VOL}', 'target' => '/z'],
+        ]],
+    ]]]);
+
+    expect(buildFor($dh)->compose['services'])->toHaveKey('a');
 });

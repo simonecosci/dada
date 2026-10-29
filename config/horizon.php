@@ -210,6 +210,19 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
+        // Deploy: coda dedicata, timeout del job = TTL del lock - 60 (vedi App\Jobs\DeployJob).
+        'supervisor-deploy' => [
+            'connection' => 'redis-deploy',
+            'queue' => ['deploy'],
+            'balance' => 'simple',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'timeout' => (int) env('DADA_DEPLOY_LOCK_TTL', 3600) - 60,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -219,11 +232,17 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
+            'supervisor-deploy' => [
+                'maxProcesses' => 5,
+            ],
         ],
 
         'local' => [
             'supervisor-1' => [
                 'maxProcesses' => 3,
+            ],
+            'supervisor-deploy' => [
+                'maxProcesses' => 2,
             ],
         ],
     ],

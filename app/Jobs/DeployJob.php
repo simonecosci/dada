@@ -30,6 +30,8 @@ class DeployJob implements ShouldQueue
     public function __construct(public int $runId)
     {
         $this->timeout = (int) config('dada.deploy.lock_ttl') - 60;
+        // Connessione con retry_after > timeout: un deploy in corso non viene riconsegnato.
+        $this->onConnection('redis-deploy')->onQueue('deploy');
     }
 
     public static function lockKey(int $deploymentId): string
@@ -53,6 +55,8 @@ class DeployJob implements ShouldQueue
 
         try {
             $options = $run->options ?? [];
+            // Il proprietario del lock permette a failed() di rilasciare solo il proprio.
+            $run->update(['options' => [...$options, 'lock_owner' => $lock->owner()]]);
             $hosts = $this->hosts($run, $options['deployment_host_id'] ?? null);
             $log = new DeployLogger($run, $this->masker($hosts, $generator));
 
@@ -87,11 +91,16 @@ class DeployJob implements ShouldQueue
             'finished_at' => now(),
         ]);
 
+        $wasRunning = $run->status === RunStatus::Running;
         if (in_array($run->status, [RunStatus::Queued, RunStatus::Running], true)) {
             $this->finish($run, RunStatus::Failed, $error);
         }
 
-        Cache::lock(self::lockKey($run->deployment_id), (int) config('dada.deploy.lock_ttl'))->forceRelease();
+        // Mai forceRelease: il lock potrebbe appartenere a un altro run dello stesso deployment.
+        $owner = $run->options['lock_owner'] ?? null;
+        if ($wasRunning && is_string($owner) && $owner !== '') {
+            Cache::restoreLock(self::lockKey($run->deployment_id), $owner)->release();
+        }
     }
 
     /** @param  array<string, mixed>  $options */
@@ -118,7 +127,8 @@ class DeployJob implements ShouldQueue
             $log->flush();
             $message = $log->mask($e->getMessage());
             if (! $e instanceof RuntimeException) {
-                report($e);
+                // Mai il messaggio grezzo: potrebbe contenere segreti.
+                report(new RuntimeException(class_basename($e).': '.$message));
             }
             $runHost->update(['status' => RunStatus::Failed, 'error' => $message, 'finished_at' => now()]);
             $log->error($dh, $message);

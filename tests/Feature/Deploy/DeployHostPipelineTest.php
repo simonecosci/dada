@@ -113,7 +113,19 @@ it('quotes the path and backs up generated and previous files with retention', f
         ->toContain('ts=$(date +%Y%m%d_%H%M%S)')
         ->toContain("'docker-compose.yml'")->toContain("'.env.wp'")->toContain("'legacy.txt'")
         ->toContain('.dada/backups/$ts/')
+        ->toContain('cp -p "$f" .dada/backups/$ts/ || exit 1')
         ->toContain('ls -1dt .dada/backups/*/ | tail -n +4 | xargs -r rm -rf');
+});
+
+it('fails when the backup fails and uploads nothing', function () {
+    $fakes = fakeShells();
+    $dh = hostWithWordpress(['path' => '/srv/x']);
+    $run = DeployRun::factory()->for($dh->deployment)->create();
+    $shell = $fakes->shellFor($dh->host)->expect('/df -Pm/', 0, "50000\n")->expect('/cp -p/', 1, "cp: cannot stat\n");
+
+    expect(fn () => runPipeline($run, $dh))->toThrow(RemoteCommandFailed::class, 'cannot stat');
+    expect($shell->files())->toBe([])
+        ->and(DeploymentSnapshot::count())->toBe(0);
 });
 
 it('wraps commands with sudo and chowns the folder', function () {
@@ -128,7 +140,8 @@ it('wraps commands with sudo and chowns the folder', function () {
 
     expect(RemoteSteps::wrap($dh, './restart.sh restart'))
         ->toBe("sudo -n sh -c 'cd '\\''/srv/o'\\''\\'\\'''\\''x'\\'' && ./restart.sh restart'")
-        ->and($shell->commands())->toContain("sudo -n mkdir -p '/srv/o'\\''x/.dada/backups' && sudo -n chown -R 'deploy' '/srv/o'\\''x'")
+        ->and($shell->commands())->toContain("sudo -n mkdir -p '/srv/o'\\''x/.dada/backups' && sudo -n chown 'deploy' '/srv/o'\\''x' && sudo -n chown -R 'deploy' '/srv/o'\\''x/.dada'")
+        ->and(implode("\n", $shell->commands()))->not->toContain("chown -R 'deploy' '/srv/o'\\''x' ")
         ->and($shell->commands())->toContain(RemoteSteps::wrap($dh, './restart.sh restart'));
 });
 

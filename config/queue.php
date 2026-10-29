@@ -73,6 +73,17 @@ return [
             'after_commit' => false,
         ],
 
+        // Deploy lunghi: retry_after oltre il TTL del lock (e quindi oltre il timeout del job),
+        // così un job in corso non viene mai riconsegnato a un secondo worker.
+        'redis-deploy' => [
+            'driver' => 'redis',
+            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
+            'queue' => 'deploy',
+            'retry_after' => (int) env('DADA_DEPLOY_RETRY_AFTER', (int) env('DADA_DEPLOY_LOCK_TTL', 3600) + 120),
+            'block_for' => null,
+            'after_commit' => false,
+        ],
+
         'deferred' => [
             'driver' => 'deferred',
         ],

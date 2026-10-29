@@ -1,5 +1,6 @@
 <?php
 
+use App\Deploy\DeployHostPipeline;
 use App\Enums\RunStatus;
 use App\Events\DeployRunUpdated;
 use App\Jobs\DeployJob;
@@ -11,6 +12,7 @@ use App\Ssh\HostKeyChanged;
 use App\Ssh\RemoteShellFactory;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Exceptions;
 
 it('continues other hosts when one fails and marks run failed', function () {
     $fakes = new FakeRemoteShellFactory;
@@ -97,10 +99,55 @@ it('masks secrets in host errors', function () {
 
 it('failed() marks run failed and releases lock', function () {
     $run = DeployRun::factory()->create(['status' => 'running']);
-    Cache::lock("deployment-run:{$run->deployment_id}", 3600)->get();
+    $lock = Cache::lock("deployment-run:{$run->deployment_id}", 3600);
+    $lock->get();
+    $run->update(['options' => ['lock_owner' => $lock->owner()]]);
     (new DeployJob($run->id))->failed(new RuntimeException('worker timeout'));
     expect($run->fresh()->status)->toBe(RunStatus::Failed)
         ->and(Cache::lock("deployment-run:{$run->deployment_id}", 10)->get())->toBeTrue();
+});
+
+it('failed() of a run does not release the lock held by another run', function () {
+    $runA = DeployRun::factory()->create(['status' => 'running', 'options' => ['lock_owner' => 'owner-of-a']]);
+    $runB = DeployRun::factory()->for($runA->deployment)->create(['status' => 'running']);
+    $lockB = Cache::lock("deployment-run:{$runA->deployment_id}", 3600);
+    $lockB->get();
+    $runB->update(['options' => ['lock_owner' => $lockB->owner()]]);
+
+    (new DeployJob($runA->id))->failed(new RuntimeException('worker timeout'));
+
+    expect($runA->fresh()->status)->toBe(RunStatus::Failed)
+        ->and(Cache::lock("deployment-run:{$runA->deployment_id}", 10)->get())->toBeFalse();
+});
+
+it('failed() of a run that is no longer running leaves the lock alone', function () {
+    $run = DeployRun::factory()->create(['status' => 'failed', 'error' => 'deployment occupato']);
+    $other = Cache::lock("deployment-run:{$run->deployment_id}", 3600);
+    $other->get();
+    $run->update(['options' => ['lock_owner' => $other->owner()]]);
+
+    (new DeployJob($run->id))->failed(new RuntimeException('x'));
+
+    expect(Cache::lock("deployment-run:{$run->deployment_id}", 10)->get())->toBeFalse()
+        ->and($run->fresh()->error)->toBe('deployment occupato');
+});
+
+it('stores the lock owner on the run and runs on the deploy queue', function () {
+    $fakes = new FakeRemoteShellFactory;
+    app()->instance(RemoteShellFactory::class, $fakes);
+    [$d, $dhA, $dhB] = deploymentWithTwoHosts();
+    $fakes->shellFor($dhA->host)->expect('/df -Pm/', 0, "50000\n");
+    $fakes->shellFor($dhB->host)->expect('/df -Pm/', 0, "50000\n");
+    $run = DeployRun::factory()->for($d)->create(['options' => ['pull' => false, 'restart' => false, 'confirm_removals' => false]]);
+    $job = new DeployJob($run->id);
+
+    DeployJob::dispatchSync($run->id);
+
+    expect($run->fresh()->options['lock_owner'])->toBeString()->not->toBe('')
+        ->and($run->fresh()->status)->toBe(RunStatus::Succeeded)
+        ->and($job->connection)->toBe('redis-deploy')
+        ->and($job->queue)->toBe('deploy')
+        ->and(config('queue.connections.redis-deploy.retry_after'))->toBeGreaterThan($job->timeout);
 });
 
 it('failed() also fails running hosts', function () {
@@ -120,4 +167,19 @@ it('configures tries and timeout from the lock ttl', function () {
     $job = new DeployJob(1);
 
     expect($job->tries)->toBe(1)->and($job->timeout)->toBe(940);
+});
+
+it('reports unexpected errors with the masked message only', function () {
+    Exceptions::fake();
+    [$d] = deploymentWithTwoHosts();
+    app()->instance(DeployHostPipeline::class, Mockery::mock(DeployHostPipeline::class, function ($mock) {
+        $mock->shouldReceive('run')->andThrow(new LogicException('bug con pw-123'));
+    }));
+    $run = DeployRun::factory()->for($d)->create(['options' => []]);
+
+    DeployJob::dispatchSync($run->id);
+
+    Exceptions::assertReported(fn (RuntimeException $e) => str_contains($e->getMessage(), 'LogicException: bug con ******'));
+    Exceptions::assertNotReported(LogicException::class);
+    expect($run->hosts()->pluck('error')->implode("\n"))->not->toContain('pw-123');
 });

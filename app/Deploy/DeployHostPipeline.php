@@ -129,13 +129,21 @@ class DeployHostPipeline
     private function prepareFolder(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log): void
     {
         $log->step($dh, 'Preparazione della cartella');
+        $base = rtrim($dh->path, '/');
         $path = ScriptRenderer::quote($dh->path);
-        $backups = ScriptRenderer::quote(rtrim($dh->path, '/').'/.dada/backups');
+        $backups = ScriptRenderer::quote($base.'/.dada/backups');
         $sudo = RemoteSteps::sudo($dh);
 
-        $this->exec($shell, $dh, $log, $sudo === ''
-            ? "mkdir -p {$backups}"
-            : "{$sudo} mkdir -p {$backups} && {$sudo} chown -R ".ScriptRenderer::quote($dh->host->username)." {$path}");
+        if ($sudo === '') {
+            $this->exec($shell, $dh, $log, "mkdir -p {$backups}");
+
+            return;
+        }
+
+        // chown ricorsivo solo su .dada: la cartella può contenere dati bind-montati (es. DB) da non toccare.
+        $user = ScriptRenderer::quote($dh->host->username);
+        $dada = ScriptRenderer::quote($base.'/.dada');
+        $this->exec($shell, $dh, $log, "{$sudo} mkdir -p {$backups} && {$sudo} chown {$user} {$path} && {$sudo} chown -R {$user} {$dada}");
     }
 
     private function backup(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log, GeneratedFiles $generated): void
@@ -149,7 +157,7 @@ class DeployHostPipeline
         $this->exec($shell, $dh, $log, RemoteSteps::wrap($dh, implode(' && ', [
             'ts=$(date +%Y%m%d_%H%M%S)',
             'mkdir -p .dada/backups/$ts',
-            "for f in {$list}; do if [ -e \"\$f\" ]; then cp -p \"\$f\" .dada/backups/\$ts/; fi; done",
+            "for f in {$list}; do if [ -e \"\$f\" ]; then cp -p \"\$f\" .dada/backups/\$ts/ || exit 1; fi; done",
             "ls -1dt .dada/backups/*/ | tail -n +{$keep} | xargs -r rm -rf",
         ])));
     }

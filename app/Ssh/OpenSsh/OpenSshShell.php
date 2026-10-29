@@ -3,6 +3,7 @@
 namespace App\Ssh\OpenSsh;
 
 use App\Enums\CredentialType;
+use App\Generation\ScriptRenderer;
 use App\Models\Host;
 use App\Ssh\ExecResult;
 use App\Ssh\HostKeyChanged;
@@ -146,15 +147,25 @@ class OpenSshShell implements RemoteShell
 
     public function put(string $remotePath, string $contents, int $mode = 0644): void
     {
-        $tmp = escapeshellarg($remotePath.'.dada-tmp');
-        $path = escapeshellarg($remotePath);
-        $command = sprintf('cat > %s && chmod %s %s && mv %s %s', $tmp, decoct($mode), $tmp, $tmp, $path);
+        $command = self::putCommand($remotePath, $mode);
 
         $result = $this->exec($command, stdin: $contents);
 
         if (! $result->successful()) {
             throw RemoteCommandFailed::from($command, $result);
         }
+    }
+
+    /**
+     * Comando remoto di put(): umask 077 così il file temporaneo non è mai leggibile da altri
+     * prima del chmod. Quoting POSIX (escapeshellarg su Windows produrrebbe apici in stile cmd).
+     */
+    public static function putCommand(string $remotePath, int $mode): string
+    {
+        $tmp = ScriptRenderer::quote($remotePath.'.dada-tmp');
+        $path = ScriptRenderer::quote($remotePath);
+
+        return sprintf('umask 077; cat > %s && chmod %s %s && mv %s %s', $tmp, decoct($mode), $tmp, $tmp, $path);
     }
 
     public function close(): void

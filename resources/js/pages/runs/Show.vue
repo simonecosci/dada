@@ -3,9 +3,11 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
 import { ref, watch } from 'vue';
 import DeploymentController from '@/actions/App/Http/Controllers/Deployments/DeploymentController';
+import RunController from '@/actions/App/Http/Controllers/Deployments/RunController';
 import LiveLog from '@/components/dada/LiveLog.vue';
 import Heading from '@/components/Heading.vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     formatDate,
     statusLabels,
@@ -29,6 +31,7 @@ const props = defineProps<{
     };
     hosts: HostRow[];
     logs: LogLine[];
+    can: { fail: boolean };
 }>();
 
 defineOptions({
@@ -40,6 +43,29 @@ defineOptions({
 });
 
 const status = ref<RunStatus>(props.run.status);
+const failing = ref(false);
+
+function markFailed() {
+    if (
+        !confirm(
+            "Segnare l'esecuzione come fallita? Usalo solo se il worker non la sta più eseguendo.",
+        )
+    ) {
+        return;
+    }
+
+    router.post(
+        RunController.fail.url(props.run.id),
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => (failing.value = true),
+            onFinish: () => (failing.value = false),
+            onSuccess: () =>
+                router.reload({ only: ['run', 'hosts', 'logs', 'can'] }),
+        },
+    );
+}
 const hostRows = ref<HostRow[]>(props.hosts.map((h) => ({ ...h })));
 
 // Dopo un reload parziale i dati del server sono quelli autorevoli.
@@ -95,15 +121,37 @@ channel().subscribed(() => {
                 :title="`${typeLabels[run.type]} #${run.id}`"
                 :description="`${run.deployment.name} · ${run.user ?? '-'} · ${formatDate(run.started_at)}`"
             />
-            <Badge
-                :variant="status === 'failed' ? 'destructive' : 'secondary'"
-                data-test="run-status"
-            >
-                {{ statusLabels[status] }}
-            </Badge>
+            <div class="flex items-center gap-2">
+                <Button
+                    v-if="
+                        can.fail &&
+                        (status === 'queued' || status === 'running')
+                    "
+                    size="sm"
+                    variant="destructive"
+                    :disabled="failing"
+                    data-test="run-fail"
+                    @click="markFailed"
+                >
+                    Segna come fallita
+                </Button>
+                <Badge
+                    :variant="status === 'failed' ? 'destructive' : 'secondary'"
+                    data-test="run-status"
+                >
+                    {{ statusLabels[status] }}
+                </Badge>
+            </div>
         </div>
 
         <p v-if="run.error" class="text-sm text-red-600">{{ run.error }}</p>
+        <p
+            v-if="$page.props.errors?.run"
+            class="text-sm text-red-600"
+            data-test="run-fail-error"
+        >
+            {{ $page.props.errors.run }}
+        </p>
 
         <ul class="flex flex-wrap gap-3 text-sm" data-test="run-hosts">
             <li

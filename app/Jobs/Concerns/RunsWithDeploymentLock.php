@@ -3,6 +3,7 @@
 namespace App\Jobs\Concerns;
 
 use App\Deploy\DeployLogger;
+use App\Deploy\RunTerminator;
 use App\Deploy\SecretMasker;
 use App\Enums\CredentialType;
 use App\Enums\RunStatus;
@@ -61,7 +62,10 @@ trait RunsWithDeploymentLock
                 $allSucceeded = $this->runHost($run, $dh, $log, $perHost) && $allSucceeded;
             }
 
-            $this->finish($run, $allSucceeded ? RunStatus::Succeeded : RunStatus::Failed);
+            // Un admin (o il reaper) può averlo già chiuso come fallito: non sovrascrivere.
+            if ($run->refresh()->status === RunStatus::Running) {
+                $this->finish($run, $allSucceeded ? RunStatus::Succeeded : RunStatus::Failed);
+            }
         } finally {
             $lock->release();
         }
@@ -76,24 +80,8 @@ trait RunsWithDeploymentLock
         }
 
         // Il messaggio dell'eccezione può contenere segreti e qui non c'è un masker: solo la classe.
-        $error = 'esecuzione interrotta'.($e !== null ? ' ('.class_basename($e).')' : '');
-
-        $run->hosts()->where('status', RunStatus::Running->value)->update([
-            'status' => RunStatus::Failed->value,
-            'error' => $error,
-            'finished_at' => now(),
-        ]);
-
-        $wasRunning = $run->status === RunStatus::Running;
-        if (in_array($run->status, [RunStatus::Queued, RunStatus::Running], true)) {
-            $this->finish($run, RunStatus::Failed, $error);
-        }
-
-        // Mai forceRelease: il lock potrebbe appartenere a un altro run dello stesso deployment.
-        $owner = $run->options['lock_owner'] ?? null;
-        if ($wasRunning && is_string($owner) && $owner !== '') {
-            Cache::restoreLock(self::lockKey($run->deployment_id), $owner)->release();
-        }
+        // RunTerminator rilascia il lock solo se appartiene ancora a questo run.
+        RunTerminator::fail($run, 'esecuzione interrotta'.($e !== null ? ' ('.class_basename($e).')' : ''));
     }
 
     /** @param  Closure(DeploymentHost, DeployLogger): void  $perHost */

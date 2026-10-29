@@ -95,6 +95,9 @@ async function submit(confirmRemovals = false) {
         if (response.status === 409) {
             open.value = false;
             toast.error(body.message ?? 'Esecuzione già in corso');
+        } else if (response.status === 503) {
+            open.value = false;
+            toast.error(body.message ?? "Impossibile accodare l'esecuzione.");
         } else if (response.status === 422 && Array.isArray(body.removals)) {
             removals.value = body.removals as PlannedRemoval[];
         } else if (response.status === 422) {

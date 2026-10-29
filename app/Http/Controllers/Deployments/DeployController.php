@@ -7,6 +7,7 @@ use App\Deploy\RemovalPlanner;
 use App\Enums\RunStatus;
 use App\Enums\RunType;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Deployments\Concerns\DispatchesRuns;
 use App\Jobs\DeployJob;
 use App\Models\Deployment;
 use App\Models\DeploymentHost;
@@ -20,6 +21,8 @@ use Illuminate\Validation\ValidationException;
 
 class DeployController extends Controller
 {
+    use DispatchesRuns;
+
     public function __invoke(Request $request, Deployment $deployment): JsonResponse|RedirectResponse
     {
         Gate::authorize('operate', $deployment);
@@ -81,8 +84,6 @@ class DeployController extends Controller
             return $result;
         }
 
-        DeployJob::dispatch($result->id);
-
-        return redirect()->route('runs.show', $result);
+        return $this->dispatchRun($request, $result, new DeployJob($result->id));
     }
 }

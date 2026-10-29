@@ -47,6 +47,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('deployments/{deployment}/deploy', DeployController::class)->name('deployments.deploy');
     Route::post('deployment-hosts/{deploymentHost}/restart', RestartController::class)->name('hosts.restart');
     Route::get('runs/{run}', [RunController::class, 'show'])->name('runs.show');
+    Route::post('runs/{run}/fail', [RunController::class, 'fail'])->middleware('can:admin')->name('runs.fail');
 
     Route::get('deployment-hosts/{deploymentHost}/preview', PreviewController::class)->name('hosts.preview');
     Route::get('deployment-hosts/{deploymentHost}/installations/create', [InstallationController::class, 'create'])->name('hosts.installations.create');

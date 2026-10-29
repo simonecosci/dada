@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Deployments;
 use App\Enums\RunStatus;
 use App\Enums\RunType;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Deployments\Concerns\DispatchesRuns;
 use App\Jobs\RestartJob;
 use App\Models\Deployment;
 use App\Models\DeploymentHost;
@@ -18,6 +19,8 @@ use Illuminate\Validation\ValidationException;
 
 class RestartController extends Controller
 {
+    use DispatchesRuns;
+
     public function __invoke(Request $request, DeploymentHost $deploymentHost): JsonResponse|RedirectResponse
     {
         $deployment = $deploymentHost->deployment;
@@ -72,9 +75,7 @@ class RestartController extends Controller
             return $result;
         }
 
-        RestartJob::dispatch($result->id);
-
-        return redirect()->route('runs.show', $result);
+        return $this->dispatchRun($request, $result, new RestartJob($result->id));
     }
 
     /**

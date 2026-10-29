@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid } from '@lucide/vue';
+import { Link, usePage } from '@inertiajs/vue3';
+import { BookOpen, FolderGit2, LayoutGrid, Users } from '@lucide/vue';
+import { computed } from 'vue';
+import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -17,6 +19,8 @@ import {
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
+const page = usePage();
+
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
@@ -24,6 +28,18 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
 ];
+
+const adminNavItems = computed<NavItem[]>(() =>
+    page.props.auth.user?.is_admin
+        ? [
+              {
+                  title: 'Utenti',
+                  href: UserController.index(),
+                  icon: Users,
+              },
+          ]
+        : [],
+);
 
 const footerNavItems: NavItem[] = [
     {
@@ -55,6 +71,11 @@ const footerNavItems: NavItem[] = [
 
         <SidebarContent>
             <NavMain :items="mainNavItems" />
+            <NavMain
+                v-if="adminNavItems.length"
+                :items="adminNavItems"
+                label="Admin"
+            />
         </SidebarContent>
 
         <SidebarFooter>

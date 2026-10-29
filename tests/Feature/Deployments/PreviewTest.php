@@ -29,6 +29,7 @@ it('returns files, errors, warnings and missing required', function () {
 
     $this->actingAs($vw)->getJson("/deployment-hosts/{$dh->id}/preview")
         ->assertOk()
+        ->assertHeader('Cache-Control', 'no-store, private')
         ->assertJsonStructure(['files' => ['docker-compose.yml', '.env', '.env.wp', 'wp.sh', 'restart.sh'], 'errors', 'warnings', 'missingRequired']);
 });
 

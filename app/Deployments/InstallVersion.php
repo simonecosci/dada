@@ -19,6 +19,10 @@ class InstallVersion
 
         $slug ??= $v->project->slug;
 
+        if ($slug === 'restart') {
+            throw ValidationException::withMessages(['slug' => 'lo slug "restart" è riservato']);
+        }
+
         return DB::transaction(function () use ($dh, $v, $slug): InstallResult {
             // Serializza le installazioni concorrenti sullo stesso host (slug e ordine).
             DeploymentHost::whereKey($dh->id)->lockForUpdate()->first();

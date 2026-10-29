@@ -114,7 +114,7 @@ class InstallationController extends Controller
 
         $data = $request->validate([
             'slug' => [
-                'required', 'string', 'max:255', 'regex:'.self::SLUG,
+                'required', 'string', 'max:255', 'regex:'.self::SLUG, Rule::notIn(['restart']),
                 Rule::unique('installations', 'slug')->where('deployment_host_id', $dh->id)->ignore($installation->id),
             ],
             'order' => ['required', 'integer', 'min:0', 'max:65535'],
@@ -124,6 +124,7 @@ class InstallationController extends Controller
             ...VariableRules::rules(),
         ], [
             'slug.regex' => 'Lo slug può contenere solo minuscole, cifre e trattini.',
+            'slug.not_in' => 'lo slug "restart" è riservato',
             'slug.unique' => 'Esiste già un\'installazione con questo slug su questo host.',
         ]);
 

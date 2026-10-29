@@ -353,3 +353,20 @@ it('rejects a stack name already used on the same host', function () {
     $this->actingAs($op)->put(route('deployments.hosts.update', [$d2, $b]), ['path' => $b->path, 'orchestrator' => 'compose', 'stack_name' => 'shared'])
         ->assertSessionHasErrors('stack_name');
 });
+
+it('reserves the restart slug on install and update', function () {
+    $d = Deployment::factory()->create();
+    $dh = DeploymentHost::factory()->for($d)->create();
+    $op = operatorFor($d);
+    $v = ProjectVersion::factory()->published()->create();
+
+    $this->actingAs($op)->post(route('hosts.installations.store', $dh), ['project_version_id' => $v->id, 'slug' => 'restart'])
+        ->assertSessionHasErrors(['slug' => 'lo slug "restart" è riservato']);
+    expect($dh->installations()->count())->toBe(0);
+
+    $inst = Installation::factory()->for($dh)->create(['slug' => 'wp']);
+    $this->actingAs($op)->put(route('installations.update', $inst), [
+        'slug' => 'restart', 'order' => 1, 'compose_yaml' => "services:\n  wp:\n    image: x\n", 'commands' => [], 'variables' => [],
+    ])->assertSessionHasErrors(['slug' => 'lo slug "restart" è riservato']);
+    expect($inst->refresh()->slug)->toBe('wp');
+});

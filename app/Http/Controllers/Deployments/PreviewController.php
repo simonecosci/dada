@@ -27,11 +27,11 @@ class PreviewController extends Controller
             ]);
         }
 
-        return response()->json([
+        return response()->json(data: [
             'files' => $reveal ? $generated->files : $generated->masked(),
             'errors' => $generated->errors,
             'warnings' => $generated->warnings,
             'missingRequired' => $generated->missingRequired,
-        ]);
+        ], headers: ['Cache-Control' => 'no-store']);
     }
 }

@@ -81,3 +81,38 @@ it('does not generate an env file for installations without container variables'
     expect($g->ok())->toBeTrue()
         ->and(array_keys($g->files))->toEqualCanonicalizing(['docker-compose.yml', '.env', 'plain.sh', 'restart.sh']);
 });
+
+it('reports a name clash between generated files', function () {
+    $dh = hostWithWordpress();
+    Installation::factory()->for($dh)->create([
+        'slug' => 'restart', 'order' => 2,
+        'compose' => ['services' => ['other' => ['image' => 'nginx']]],
+    ]);
+
+    $g = app(HostFilesGenerator::class)->generate($dh);
+
+    expect($g->ok())->toBeFalse()
+        ->and($g->files)->toBe([])
+        ->and(implode(' ', $g->errors))->toContain('restart.sh');
+});
+
+it('turns a decrypt failure into an error without leaking details', function () {
+    $dh = hostWithWordpress();
+    $dh->installations()->first()->variables()->update(['default' => 'not-encrypted-garbage']);
+
+    $g = app(HostFilesGenerator::class)->generate($dh->refresh());
+
+    expect($g->ok())->toBeFalse()
+        ->and($g->files)->toBe([])
+        ->and($g->errors)->toBe(['impossibile decifrare una variabile segreta']);
+});
+
+it('turns unexpected exceptions into a generic error', function () {
+    $dh = hostWithWordpress();
+    $dh->update(['orchestrator' => 'compose']);
+    $dh->installations()->first()->update(['compose' => ['services' => 'boom']]);
+
+    $g = app(HostFilesGenerator::class)->generate($dh->refresh());
+
+    expect($g->ok())->toBeFalse()->and($g->files)->toBe([])->and($g->errors)->not->toBeEmpty();
+});

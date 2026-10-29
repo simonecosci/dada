@@ -41,7 +41,7 @@ class ComposeFragment
         } else {
             foreach ($services as $name => $service) {
                 $name = (string) $name;
-                if (! preg_match('/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/', $name)) {
+                if (! preg_match('/\A[a-zA-Z0-9][a-zA-Z0-9_.-]*\z/', $name)) {
                     $errors[] = "services.{$name}: nome non valido";
                 }
                 if (! is_array($service) || ($service !== [] && array_is_list($service))) {
@@ -59,7 +59,8 @@ class ComposeFragment
         }
 
         foreach (['volumes', 'networks', 'configs'] as $key) {
-            if (array_key_exists($key, $data) && $data[$key] !== null && ! is_array($data[$key])) {
+            if (array_key_exists($key, $data) && $data[$key] !== null
+                && (! is_array($data[$key]) || ($data[$key] !== [] && array_is_list($data[$key])))) {
                 $errors[] = "{$key}: deve essere una mappa";
             }
         }

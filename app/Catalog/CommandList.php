@@ -35,7 +35,7 @@ class CommandList
             }
 
             if (! isset($c['target']) || ! is_string($c['target'])
-                || ! preg_match('/^(host|service:[a-zA-Z0-9][a-zA-Z0-9_.-]*)$/', $c['target'])) {
+                || ! preg_match('/\A(host|service:[a-zA-Z0-9][a-zA-Z0-9_.-]*)\z/', $c['target'])) {
                 $errors[] = "{$p}.target: deve essere \"host\" o \"service:<nome>\"";
             }
 

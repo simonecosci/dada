@@ -3,12 +3,8 @@ import { initializeTheme } from '@/composables/useAppearance';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
+import { setupEcho } from '@/lib/echo';
 import { initializeFlashToast } from '@/lib/flashToast';
-import { configureEcho } from '@laravel/echo-vue';
-
-configureEcho({
-    broadcaster: 'reverb',
-});
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -26,7 +22,10 @@ void createInertiaApp({
                 return AppLayout;
         }
     },
-    withApp: (app) => {
+    withApp: (app, { page }) => {
+        // Prima del mount: i componenti chiamano useEcho nel setup.
+        setupEcho(page.props.reverb);
+
         app.directive('focus', {
             mounted: (el: HTMLElement, shouldFocus) => {
                 if (shouldFocus.value !== false) {

@@ -16,14 +16,32 @@ const follow = ref(true);
 
 const known = new Set(lines.value.map((l) => l.id));
 
-useEcho<LogLine>(`deploy-runs.${props.runId}`, '.log', (line) => {
-    if (known.has(line.id)) {
-        return;
+function merge(incoming: LogLine[]): void {
+    let outOfOrder = false;
+
+    for (const line of incoming) {
+        if (known.has(line.id)) {
+            continue;
+        }
+
+        const last = lines.value[lines.value.length - 1];
+        outOfOrder ||= last !== undefined && last.id > line.id;
+        known.add(line.id);
+        lines.value.push(line);
     }
 
-    known.add(line.id);
-    lines.value.push(line);
-});
+    if (outOfOrder) {
+        lines.value.sort((a, b) => a.id - b.id);
+    }
+}
+
+useEcho<LogLine>(`deploy-runs.${props.runId}`, '.log', (line) => merge([line]));
+
+// Reload parziali (catch-up, fine run): unisce le righe nuove senza duplicati.
+watch(
+    () => props.initialLogs,
+    (logs) => merge(logs),
+);
 
 const visible = computed(() =>
     hostFilter.value === 'all'

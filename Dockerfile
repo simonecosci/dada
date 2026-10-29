@@ -26,15 +26,9 @@ RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interactio
 FROM base AS assets
 RUN apk add --no-cache nodejs npm
 ARG VITE_APP_NAME=dada
-ARG VITE_REVERB_APP_KEY=
-ARG VITE_REVERB_HOST=localhost
-ARG VITE_REVERB_PORT=8000
-ARG VITE_REVERB_SCHEME=http
-ENV VITE_APP_NAME=$VITE_APP_NAME \
-    VITE_REVERB_APP_KEY=$VITE_REVERB_APP_KEY \
-    VITE_REVERB_HOST=$VITE_REVERB_HOST \
-    VITE_REVERB_PORT=$VITE_REVERB_PORT \
-    VITE_REVERB_SCHEME=$VITE_REVERB_SCHEME
+# No VITE_REVERB_* here: the browser gets the Reverb client config at runtime
+# (shared Inertia prop `reverb`: REVERB_APP_KEY + optional REVERB_CLIENT_*).
+ENV VITE_APP_NAME=$VITE_APP_NAME
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 COPY --from=vendor /var/www/html/vendor ./vendor

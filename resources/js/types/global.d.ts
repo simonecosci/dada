@@ -1,4 +1,5 @@
 import type { Directive } from 'vue';
+import type { ReverbClientConfig } from '@/lib/echo';
 import type { Auth } from '@/types/auth';
 
 // Extend ImportMeta interface for Vite...
@@ -20,6 +21,7 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             sidebarOpen: boolean;
+            reverb: ReverbClientConfig;
             [key: string]: unknown;
         };
     }

@@ -41,6 +41,13 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // Configurazione runtime di Echo: l'immagine pubblicata non dipende dai VITE_* di build.
+            'reverb' => [
+                'key' => config('reverb.apps.apps.0.key') ?: null,
+                'host' => config('dada.reverb.host'),
+                'port' => config('dada.reverb.port'),
+                'scheme' => config('dada.reverb.scheme'),
+            ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

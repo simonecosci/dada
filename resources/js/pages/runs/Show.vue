@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useEcho } from '@laravel/echo-vue';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import DeploymentController from '@/actions/App/Http/Controllers/Deployments/DeploymentController';
 import LiveLog from '@/components/dada/LiveLog.vue';
 import Heading from '@/components/Heading.vue';
@@ -42,7 +42,17 @@ defineOptions({
 const status = ref<RunStatus>(props.run.status);
 const hostRows = ref<HostRow[]>(props.hosts.map((h) => ({ ...h })));
 
-useEcho<{
+// Dopo un reload parziale i dati del server sono quelli autorevoli.
+watch(
+    () => props.run.status,
+    (value) => (status.value = value),
+);
+watch(
+    () => props.hosts,
+    (hosts) => (hostRows.value = hosts.map((h) => ({ ...h }))),
+);
+
+const { channel } = useEcho<{
     id: number;
     status: RunStatus;
     hosts: {
@@ -65,8 +75,14 @@ useEcho<{
     }
 
     if (payload.status === 'succeeded' || payload.status === 'failed') {
-        router.reload({ only: ['run'] });
+        router.reload({ only: ['run', 'hosts', 'logs'] });
     }
+});
+
+// Recupera le righe emesse tra il render e la sottoscrizione (e dopo una riconnessione);
+// LiveLog scarta i duplicati per id.
+channel().subscribed(() => {
+    router.reload({ only: ['run', 'hosts', 'logs'] });
 });
 </script>
 

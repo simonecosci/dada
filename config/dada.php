@@ -11,6 +11,14 @@ return [
         'lock_ttl' => (int) env('DADA_DEPLOY_LOCK_TTL', 3600),
     ],
 
+    // Client Reverb del browser (valori pubblici, mai il secret). null = origine della pagina
+    // (con Docker nginx inoltra /app a Reverb sulla stessa porta web).
+    'reverb' => [
+        'host' => env('REVERB_CLIENT_HOST') ?: null,
+        'port' => env('REVERB_CLIENT_PORT') ? (int) env('REVERB_CLIENT_PORT') : null,
+        'scheme' => env('REVERB_CLIENT_SCHEME') ?: null,
+    ],
+
     'ssh' => [
         'connect_timeout' => (int) env('DADA_SSH_CONNECT_TIMEOUT', 10),
         'command_timeout' => (int) env('DADA_SSH_COMMAND_TIMEOUT', 1800),

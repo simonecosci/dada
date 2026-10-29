@@ -40,16 +40,6 @@ docker compose exec app php artisan dada:admin tu@example.com
 docker build -t dada:dev .
 ```
 
-Le variabili `VITE_REVERB_*` vengono incorporate nel bundle JS in fase di build; per un'immagine con valori diversi dai default si passano come build arg:
-
-```bash
-docker build -t dada:dev \
-  --build-arg VITE_REVERB_APP_KEY=<REVERB_APP_KEY> \
-  --build-arg VITE_REVERB_HOST=dada.example.com \
-  --build-arg VITE_REVERB_PORT=443 \
-  --build-arg VITE_REVERB_SCHEME=https .
-```
-
-Default: host `localhost`, porta `8000`, schema `http`, key vuota. La chiave Reverb e' pubblica (finisce nel client), non e' il secret. Lo stage degli asset include PHP e `vendor` perche' il plugin Wayfinder di Vite esegue `php artisan wayfinder:generate`.
+La configurazione del client Reverb non e' incorporata nel bundle: il browser la riceve a runtime dal server (prop Inertia condivisa `reverb`, con `REVERB_APP_KEY` e gli opzionali `REVERB_CLIENT_HOST`, `REVERB_CLIENT_PORT`, `REVERB_CLIENT_SCHEME`; il secret non viene mai inviato). Se `REVERB_CLIENT_*` sono vuote il browser usa l'origine della pagina, corretta con l'immagine Docker perche' nginx inoltra `/app` a Reverb. Le `VITE_REVERB_*` restano solo come fallback per lo sviluppo locale. Lo stage degli asset include PHP e `vendor` perche' il plugin Wayfinder di Vite esegue `php artisan wayfinder:generate`.
 
 Per uno smoke test locale usa un `docker-compose.override.yml` (ignorato da git) che imposta `image: dada:dev` sui servizi `app`, `worker`, `scheduler` e `reverb`.

@@ -4,6 +4,7 @@ use App\Enums\VersionStatus;
 use App\Models\Project;
 use App\Models\ProjectVersion;
 use App\Models\User;
+use App\Models\Variable;
 use App\Variables\VariableSync;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -55,7 +56,7 @@ it('refuses to update a published version', function () {
     $r = $this->actingAs($m)->put(route('versions.update', $v), [
         'version' => '9.9', 'compose_yaml' => "services:\n  wp:\n    image: wordpress:6\n", 'commands' => [], 'variables' => [],
     ]);
-    expect($r->getStatusCode())->toBeIn([302, 403]);
+    $r->assertForbidden();
     expect($v->fresh()->version)->not->toBe('9.9');
 });
 
@@ -138,4 +139,56 @@ it('hides secret defaults from the edit page props', function () {
     $this->actingAs($m)->get(route('versions.edit', $v))->assertDontSee('TOPSECRET')
         ->assertInertia(fn (Assert $page) => $page->component('catalog/versions/Edit')
             ->where('variables.0.default', null)->where('variables.0.has_default', true));
+});
+
+it('deletes a project with draft versions and their variables', function () {
+    $m = maintainer();
+    $v = ProjectVersion::factory()->create();
+    VariableSync::sync($v, [['key' => 'K', 'scope' => 'container', 'secret' => true, 'default' => 'x']]);
+    $this->actingAs($m)->delete(route('projects.destroy', $v->project))->assertRedirect();
+    expect(Project::count())->toBe(0)->and(ProjectVersion::count())->toBe(0)->and(Variable::count())->toBe(0);
+});
+
+it('refuses to delete a project with a published version', function () {
+    $m = maintainer();
+    $v = ProjectVersion::factory()->published()->create();
+    $this->actingAs($m)->delete(route('projects.destroy', $v->project))->assertSessionHasErrors('project');
+    expect(Project::count())->toBe(1)->and(ProjectVersion::count())->toBe(1);
+});
+
+it('keeps variable ids stable across consecutive saves', function () {
+    $m = maintainer();
+    $v = ProjectVersion::factory()->create();
+    $payload = fn (array $vars) => [
+        'version' => '1.0', 'compose_yaml' => "services:\n  wp:\n    image: wordpress:6\n", 'commands' => [], 'variables' => $vars,
+    ];
+    $this->actingAs($m)->put(route('versions.update', $v), $payload([['key' => 'A', 'scope' => 'container', 'default' => '1']]))->assertRedirect();
+    $rows = null;
+    $this->actingAs($m)->get(route('versions.edit', $v))
+        ->assertInertia(function (Assert $page) use (&$rows) {
+            $rows = $page->toArray()['props']['variables'];
+        });
+    $id = $rows[0]['id'];
+    $this->actingAs($m)->put(route('versions.update', $v), $payload([['id' => $id, 'key' => 'A', 'scope' => 'container', 'default' => '2']]))->assertRedirect();
+    expect($v->variables()->pluck('id')->all())->toBe([$id])->and($v->variables()->first()->default)->toBe('2');
+});
+
+it('forbids non maintainers on every write route', function () {
+    $u = User::factory()->create();
+    $v = ProjectVersion::factory()->create();
+    $this->actingAs($u)->put(route('versions.update', $v), [])->assertForbidden();
+    $this->actingAs($u)->post(route('versions.clone', $v), ['version' => '2.0'])->assertForbidden();
+    $this->actingAs($u)->delete(route('versions.destroy', $v))->assertForbidden();
+    $this->actingAs($u)->post(route('projects.versions.store', $v->project), ['version' => '3.0'])->assertForbidden();
+});
+
+it('leaves compose unchanged when variable sync fails', function () {
+    $m = maintainer();
+    $v = ProjectVersion::factory()->create();
+    $before = $v->compose;
+    $this->actingAs($m)->put(route('versions.update', $v), [
+        'version' => '1.0', 'compose_yaml' => "services:\n  wp:\n    image: wordpress:6\n", 'commands' => [],
+        'variables' => [['key' => 'bad key', 'scope' => 'container']],
+    ])->assertSessionHasErrors('variables.0.key');
+    expect($v->fresh()->compose)->toBe($before);
 });

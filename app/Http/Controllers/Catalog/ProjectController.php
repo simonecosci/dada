@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Catalog;
 
+use App\Enums\VersionStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -79,7 +82,17 @@ class ProjectController extends Controller
     {
         Gate::authorize('delete', $project);
 
-        $project->delete();
+        if ($project->versions()->where('status', VersionStatus::Published)->exists()) {
+            throw ValidationException::withMessages([
+                'project' => 'Il progetto ha versioni pubblicate e non può essere cancellato.',
+            ]);
+        }
+
+        // Le versioni vanno cancellate via Eloquent: la cascata del DB salterebbe la pulizia delle variabili.
+        DB::transaction(function () use ($project): void {
+            $project->versions->each->delete();
+            $project->delete();
+        });
 
         return to_route('projects.index');
     }

@@ -86,6 +86,18 @@ function save() {
         variables: variablesPayload(data.variables),
     })).put(ProjectVersionController.update(props.version.id).url, {
         preserveScroll: true,
+        // Riallinea le righe alle props aggiornate: le nuove variabili ricevono l'id dal server.
+        onSuccess: () => {
+            form.variables = props.variables.map((v) => ({ ...v }));
+            form.defaults({
+                version: form.version,
+                notes: form.notes,
+                compose_yaml: form.compose_yaml,
+                commands: form.commands,
+                variables: form.variables,
+            });
+            form.clearErrors();
+        },
     });
 }
 

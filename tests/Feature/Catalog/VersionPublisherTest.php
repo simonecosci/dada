@@ -5,6 +5,7 @@ use App\Enums\VersionStatus;
 use App\Models\Project;
 use App\Models\ProjectVersion;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 
 it('publishes a draft version', function () {
     $v = ProjectVersion::factory()->create();
@@ -51,7 +52,7 @@ it('enforces unique version per project', function () {
     $project = Project::factory()->create();
     ProjectVersion::factory()->for($project)->create(['version' => '1.0.0']);
     expect(fn () => ProjectVersion::factory()->for($project)->create(['version' => '1.0.0']))
-        ->toThrow(Illuminate\Database\QueryException::class);
+        ->toThrow(QueryException::class);
 });
 
 it('restricts project management to maintainers', function () {

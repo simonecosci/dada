@@ -5,6 +5,7 @@ import DeploymentController from "@/actions/App/Http/Controllers/Deployments/Dep
 import DeploymentHostController from "@/actions/App/Http/Controllers/Deployments/DeploymentHostController";
 import MemberController from "@/actions/App/Http/Controllers/Deployments/MemberController";
 import Heading from "@/components/Heading.vue";
+import DeployDialog from "@/components/dada/DeployDialog.vue";
 import RunsTable from "@/components/dada/RunsTable.vue";
 import InputError from "@/components/InputError.vue";
 import { Badge } from "@/components/ui/badge";
@@ -114,6 +115,11 @@ function destroy() {
                 "
             />
             <div class="flex gap-2">
+                <DeployDialog
+                    v-if="canOperate && hosts.length > 0"
+                    :deployment-id="deployment.id"
+                    :hosts="hosts.map((h) => ({ id: h.id, name: h.name }))"
+                />
                 <Button v-if="canUpdate" variant="outline" as-child>
                     <Link :href="DeploymentController.edit(deployment.id)">
                         Modifica

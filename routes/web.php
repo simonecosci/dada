@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\HostController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Catalog\ProjectController;
 use App\Http\Controllers\Catalog\ProjectVersionController;
+use App\Http\Controllers\Deployments\DeployController;
 use App\Http\Controllers\Deployments\DeploymentController;
 use App\Http\Controllers\Deployments\DeploymentHostController;
 use App\Http\Controllers\Deployments\InstallationController;
@@ -42,6 +43,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('deployments/{deployment}/hosts/{deploymentHost}/variables', [DeploymentHostController::class, 'variables'])->name('deployments.hosts.variables.update');
     Route::put('deployments/{deployment}/hosts/{deploymentHost}/registries', [DeploymentHostController::class, 'registries'])->name('deployments.hosts.registries.update');
 
+    Route::post('deployments/{deployment}/deploy', DeployController::class)->name('deployments.deploy');
     Route::get('runs/{run}', [RunController::class, 'show'])->name('runs.show');
 
     Route::get('deployment-hosts/{deploymentHost}/preview', PreviewController::class)->name('hosts.preview');

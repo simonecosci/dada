@@ -5,6 +5,7 @@ import DeploymentController from "@/actions/App/Http/Controllers/Deployments/Dep
 import DeploymentHostController from "@/actions/App/Http/Controllers/Deployments/DeploymentHostController";
 import InstallationController from "@/actions/App/Http/Controllers/Deployments/InstallationController";
 import CodeEditor from "@/components/dada/CodeEditor.vue";
+import DeployDialog from "@/components/dada/DeployDialog.vue";
 import RunsTable from "@/components/dada/RunsTable.vue";
 import type { RunSummary } from "@/lib/runs";
 import VariablesEditor from "@/components/dada/VariablesEditor.vue";
@@ -236,6 +237,14 @@ function destroy() {
                 :description="`${deploymentHost.host.hostname} · ${deploymentHost.path} · ${deploymentHost.orchestrator} · stack ${deploymentHost.stack_name}`"
             />
             <div class="flex gap-2">
+                <DeployDialog
+                    v-if="canOperate"
+                    :deployment-id="deployment.id"
+                    :hosts="[
+                        { id: deploymentHost.id, name: deploymentHost.host.name },
+                    ]"
+                    :fixed-host-id="deploymentHost.id"
+                />
                 <Button v-if="canOperate" variant="outline" as-child>
                     <Link :href="DeploymentHostController.edit(hostParams)">
                         Impostazioni

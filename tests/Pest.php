@@ -3,6 +3,7 @@
 use App\Generation\BuiltCompose;
 use App\Generation\ComposeBuilder;
 use App\Generation\EffectiveVariables;
+use App\Models\Deployment;
 use App\Models\DeploymentHost;
 use App\Models\Installation;
 use App\Variables\VariableSync;
@@ -12,7 +13,7 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->in('Feature', 'Unit/Infrastructure', 'Unit/Ssh', 'Unit/Catalog', 'Unit/Variables', 'Unit/Generation', 'Unit/Deployments', 'Integration');
+    ->in('Feature', 'Unit/Infrastructure', 'Unit/Ssh', 'Unit/Catalog', 'Unit/Variables', 'Unit/Generation', 'Unit/Deployments', 'Unit/Deploy', 'Integration');
 
 /*
 |--------------------------------------------------------------------------
@@ -180,4 +181,18 @@ function hostWithWordpress(array $dhAttributes = [], array $hostAttributes = [])
     ], allowHostGlobal: false);
 
     return $dh->refresh();
+}
+
+/**
+ * Deployment con due host compose (A e B, host SSH distinti), ciascuno con l'installazione 'wp' di hostWithWordpress().
+ *
+ * @return array{Deployment, DeploymentHost, DeploymentHost}
+ */
+function deploymentWithTwoHosts(): array
+{
+    $deployment = Deployment::factory()->create();
+    $a = hostWithWordpress(['deployment_id' => $deployment->id]);
+    $b = hostWithWordpress(['deployment_id' => $deployment->id]);
+
+    return [$deployment, $a, $b];
 }

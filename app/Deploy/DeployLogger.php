@@ -3,9 +3,9 @@
 namespace App\Deploy;
 
 use App\Events\DeployRunLogged;
+use App\Models\DeploymentHost;
 use App\Models\DeployRun;
 use App\Models\DeployRunLog;
-use App\Models\DeploymentHost;
 use Throwable;
 
 class DeployLogger
@@ -19,7 +19,19 @@ class DeployLogger
      */
     private array $buffers = [];
 
-    public function __construct(private readonly DeployRun $run, private readonly SecretMasker $masker) {}
+    public function __construct(private readonly DeployRun $run, private SecretMasker $masker) {}
+
+    /**
+     * Aggiunge segreti scoperti durante il run (es. credenziali registry): da qui in poi vengono mascherati.
+     *
+     * @param  list<string>  $secrets
+     */
+    public function addSecrets(array $secrets): void
+    {
+        if ($secrets !== []) {
+            $this->masker = $this->masker->with($secrets);
+        }
+    }
 
     public function step(?DeploymentHost $dh, string $msg): void
     {

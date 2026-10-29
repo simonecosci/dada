@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class DeploymentHost extends Model
 {
@@ -52,6 +53,16 @@ class DeploymentHost extends Model
     public function installations(): HasMany
     {
         return $this->hasMany(Installation::class)->orderBy('order')->orderBy('id');
+    }
+
+    public function snapshots(): HasMany
+    {
+        return $this->hasMany(DeploymentSnapshot::class);
+    }
+
+    public function latestSnapshot(): HasOne
+    {
+        return $this->hasOne(DeploymentSnapshot::class)->latestOfMany();
     }
 
     public function registries(): BelongsToMany

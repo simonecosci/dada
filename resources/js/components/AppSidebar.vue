@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid, Users } from '@lucide/vue';
+import {
+    BookOpen,
+    FolderGit2,
+    KeyRound,
+    LayoutGrid,
+    Server,
+    Users,
+} from '@lucide/vue';
 import { computed } from 'vue';
+import CredentialController from '@/actions/App/Http/Controllers/Admin/CredentialController';
+import HostController from '@/actions/App/Http/Controllers/Admin/HostController';
 import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
@@ -36,6 +45,16 @@ const adminNavItems = computed<NavItem[]>(() =>
                   title: 'Utenti',
                   href: UserController.index(),
                   icon: Users,
+              },
+              {
+                  title: 'Credenziali',
+                  href: CredentialController.index(),
+                  icon: KeyRound,
+              },
+              {
+                  title: 'Host',
+                  href: HostController.index(),
+                  icon: Server,
               },
           ]
         : [],

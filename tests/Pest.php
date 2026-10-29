@@ -5,4 +5,4 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->in('Feature', 'Unit/Infrastructure', 'Unit/Ssh', 'Integration');
+    ->in('Feature', 'Unit/Infrastructure', 'Unit/Ssh', 'Unit/Catalog', 'Integration');

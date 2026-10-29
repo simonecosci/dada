@@ -88,7 +88,8 @@ function bashBinary(): ?string
  *
  * @param  array<string, string>  $files
  * @param  list<string>  $args
- * @return array{exit: int, output: string, log: string, dir: string}
+ *                              La directory viene rimossa: `files` riporta il contenuto finale (nome => contenuto).
+ * @return array{exit: int, output: string, log: string, files: array<string, string>}
  */
 function runBashScript(array $files, string $entry, array $args = [], array $env = []): array
 {
@@ -124,9 +125,20 @@ SH;
     );
     $process->run();
 
-    $log = (string) @file_get_contents($dir.DIRECTORY_SEPARATOR.'docker.log');
+    $left = [];
+    foreach (array_diff(scandir($dir), ['.', '..']) as $name) {
+        $path = $dir.DIRECTORY_SEPARATOR.$name;
+        $left[$name] = is_file($path) ? (string) file_get_contents($path) : '';
+        is_dir($path) ? @rmdir($path) : @unlink($path);
+    }
+    @rmdir($dir);
 
-    return ['exit' => $process->getExitCode(), 'output' => $process->getOutput().$process->getErrorOutput(), 'log' => $log, 'dir' => $dir];
+    return [
+        'exit' => $process->getExitCode(),
+        'output' => $process->getOutput().$process->getErrorOutput(),
+        'log' => $left['docker.log'] ?? '',
+        'files' => $left,
+    ];
 }
 
 /** Controlla la sintassi con `bash -n`; salta il test se bash non c'è. */

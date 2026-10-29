@@ -18,8 +18,17 @@ esac
 @foreach ($services as $service)
 {!! $service['fn'] !!}() {
   case "$1" in
+@if ($service['mode'] === null)
     start) docker service scale {!! $service['full'] !!}={!! $service['replicas'] !!} ;;
     stop) docker service scale {!! $service['full'] !!}=0 ;;
+@else
+    start|stop)
+      printf 'servizio %s in modalità %s: start/stop non supportati, usa restart\n' {!! $service['name'] !!} {!! $service['mode'] !!} >&2
+      if [ "$TARGET" != all ]; then
+        exit 2
+      fi
+      ;;
+@endif
     restart) docker service update --force {!! $service['full'] !!} ;;
     status) docker service ps {!! $service['full'] !!} ;;
   esac

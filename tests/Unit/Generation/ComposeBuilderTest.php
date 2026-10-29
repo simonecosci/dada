@@ -155,3 +155,55 @@ it('does not validate volume sources that contain variable interpolation', funct
 
     expect(buildFor($dh)->compose['services'])->toHaveKey('a');
 });
+
+it('forces attachable on networks used by swarm inits', function () {
+    $dh = DeploymentHost::factory()->create(['orchestrator' => 'swarm']);
+    Installation::factory()->for($dh)->create(['slug' => 'wp', 'compose' => [
+        'services' => [
+            'wp' => ['image' => 'x', 'networks' => ['front', 'back']],
+            'migrate' => ['image' => 'x', 'networks' => ['back'], 'x-dada' => ['init' => true]],
+        ],
+        'networks' => ['back' => null, 'front' => ['driver' => 'overlay']],
+    ]]);
+
+    $b = buildFor($dh);
+
+    expect($b->compose['networks']['back'])->toBe(['attachable' => true])
+        ->and($b->compose['networks']['front'])->toBe(['driver' => 'overlay'])
+        ->and($b->compose['networks']['default'])->toBe(['driver' => 'overlay', 'attachable' => true]);
+});
+
+it('rejects external or non overlay networks used by swarm inits', function (array $network, string $message) {
+    $dh = DeploymentHost::factory()->create(['orchestrator' => 'swarm']);
+    Installation::factory()->for($dh)->create(['slug' => 'wp', 'compose' => [
+        'services' => [
+            'wp' => ['image' => 'x'],
+            'migrate' => ['image' => 'x', 'networks' => ['back'], 'x-dada' => ['init' => true]],
+        ],
+        'networks' => ['back' => $network],
+    ]]);
+
+    expect(fn () => buildFor($dh))->toThrow(GenerationFailed::class, $message);
+})->with([
+    'external' => [['external' => true], 'network "back" usata dall\'init migrate: non può essere external in swarm'],
+    'bridge' => [['driver' => 'bridge'], 'network "back" usata dall\'init migrate: in swarm serve il driver overlay'],
+]);
+
+it('rejects shell reserved .env keys in swarm only', function (string $key) {
+    $dh = DeploymentHost::factory()->create(['orchestrator' => 'swarm']);
+    VariableSync::sync($dh, [['key' => $key, 'scope' => 'host-global', 'default' => 'x']]);
+    Installation::factory()->for($dh)->create(['slug' => 'wp']);
+
+    expect(fn () => buildFor($dh->fresh()))->toThrow(GenerationFailed::class, "{$key}: nome riservato della shell");
+
+    $dh->update(['orchestrator' => 'compose']);
+    expect(buildFor($dh->fresh())->compose)->toHaveKey('services');
+})->with(['PATH', 'IFS', 'UID', 'SHELLOPTS', 'BASH_ENV', 'LD_PRELOAD', 'DOCKER_HOST', 'HOME', 'PS4']);
+
+it('accepts ordinary .env keys in swarm', function () {
+    $dh = DeploymentHost::factory()->create(['orchestrator' => 'swarm']);
+    VariableSync::sync($dh, [['key' => 'MY_PATH', 'scope' => 'host-global', 'default' => 'x'], ['key' => 'BASH', 'scope' => 'host-global', 'default' => 'x']]);
+    Installation::factory()->for($dh)->create(['slug' => 'wp']);
+
+    expect(buildFor($dh->fresh())->compose)->toHaveKey('services');
+});

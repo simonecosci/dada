@@ -26,10 +26,20 @@ run_inits() {
   :
 }
 
+# Ruling P12: prima lo stack (crea le reti, avvia i servizi), poi gli init,
+# poi il riavvio dei servizi delle installazioni che hanno init.
+refresh_services() {
+@foreach ($updates as $update)
+  docker service update --force {!! $update !!}
+@endforeach
+  :
+}
+
 case "$ACTION" in
   start|restart)
-    run_inits
     docker stack deploy -c docker-compose.yml --with-registry-auth --prune {!! $stack !!}
+    run_inits
+    refresh_services
     ;;
   stop) docker stack rm {!! $stack !!} ;;
   status) docker stack services {!! $stack !!} ;;

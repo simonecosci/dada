@@ -11,8 +11,8 @@ class ComposeBuilder
 {
     private const SECTIONS = ['volumes', 'networks', 'configs'];
 
-    /** Chiavi di un init swarm tradotte in opzioni di `docker run` (vedi ScriptRenderer). */
-    public const SWARM_INIT_KEYS = ['image', 'command', 'environment', 'env_file', 'networks', 'volumes'];
+    /** Chiavi di .env vietate in swarm: restart.sh le esporterebbe nella shell di root (Ruling P13). */
+    private const SWARM_RESERVED_KEYS = '/\A(UID|GID|EUID|PPID|BASHOPTS|SHELLOPTS|RANDOM|SRANDOM|SECONDS|LINENO|PATH|IFS|ENV|HOME|PWD|OLDPWD|SHLVL|PS4|BASH_.*|LD_.*|DOCKER_.*)\z/s';
 
     /** @param Collection<int, Installation> $installations */
     public static function build(DeploymentHost $dh, Collection $installations, EffectiveVariables $vars): BuiltCompose
@@ -20,6 +20,8 @@ class ComposeBuilder
         $swarm = $dh->orchestrator === Orchestrator::Swarm;
         $errors = [];
         $warnings = [];
+        /** @var array<string, string> $initNetworks rete => primo init swarm che la usa */
+        $initNetworks = [];
 
         $template = is_array($dh->compose_template) ? $dh->compose_template : [];
         $sections = [
@@ -94,11 +96,14 @@ class ComposeBuilder
 
                 if ($isInit && $swarm) {
                     foreach (array_keys($def) as $key) {
-                        if (! in_array($key, self::SWARM_INIT_KEYS, true)) {
+                        if (! in_array($key, ScriptRenderer::SWARM_INIT_KEYS, true)) {
                             $warnings[] = "init {$name}: chiave {$key} ignorata in swarm";
                         }
                     }
                     $initServices[$slug][$name] = $def;
+                    foreach (self::usedNetworks($def) ?: ['default'] as $network) {
+                        $initNetworks[$network] ??= $name;
+                    }
 
                     continue;
                 }
@@ -149,12 +154,42 @@ class ComposeBuilder
             }
         }
 
-        if ($errors !== []) {
-            throw new GenerationFailed(array_values(array_unique($errors)));
+        if ($swarm) {
+            foreach (array_keys($vars->dotEnv()) as $key) {
+                if (preg_match(self::SWARM_RESERVED_KEYS, (string) $key)) {
+                    $errors[] = "{$key}: nome riservato della shell, non utilizzabile come variabile in swarm";
+                }
+            }
         }
 
         if ($swarm && $initServices !== [] && ! array_key_exists('default', $sections['networks'])) {
             $sections['networks']['default'] = ['driver' => 'overlay', 'attachable' => true];
+        }
+
+        // Ruling P12: gli init girano con `docker run` sulle reti dello stack, che devono essere attachable.
+        foreach ($initNetworks as $network => $init) {
+            if (! array_key_exists($network, $sections['networks'])) {
+                continue; // già segnalata come non dichiarata
+            }
+            $def = $sections['networks'][$network];
+            if ($def !== null && ! is_array($def)) {
+                $errors[] = "network \"{$network}\" non è una mappa valida";
+
+                continue;
+            }
+            $def ??= [];
+            if (! empty($def['external'])) {
+                $errors[] = "network \"{$network}\" usata dall'init {$init}: non può essere external in swarm";
+            } elseif (isset($def['driver']) && $def['driver'] !== 'overlay') {
+                $errors[] = "network \"{$network}\" usata dall'init {$init}: in swarm serve il driver overlay";
+            } else {
+                $def['attachable'] = true;
+                $sections['networks'][$network] = $def;
+            }
+        }
+
+        if ($errors !== []) {
+            throw new GenerationFailed(array_values(array_unique($errors)));
         }
 
         $compose = $swarm ? ['services' => $services] : ['name' => $dh->stack_name, 'services' => $services];

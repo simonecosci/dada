@@ -13,8 +13,18 @@ use Illuminate\Support\Collection;
  */
 final class ScriptRenderer
 {
-    /** ${VAR}, ${VAR-default}, ${VAR:-default}; il default non può contenere } $ ` " \ né a capo. */
-    private const TOKEN = '\$\{[A-Za-z_][A-Za-z0-9_]*(?::?-[^}$`"\\\\\r\n]*)?\}';
+    /** Chiavi di un init swarm tradotte in opzioni di `docker run`; le altre producono un warning. */
+    public const SWARM_INIT_KEYS = ['image', 'command', 'environment', 'env_file', 'networks', 'volumes'];
+
+    /** Modalità swarm senza un numero di repliche da scalare. */
+    private const UNSCALABLE_MODES = ['global', 'replicated-job', 'global-job'];
+
+    /**
+     * `$$`, oppure ${NAME}, ${NAME-default}, ${NAME:-default} con default in whitelist
+     * (niente apici, $, `, ", \, } né a capo: dentro "${X:-...}" bash li reinterpreta),
+     * oppure qualunque altro `$` (rifiutato), oppure un carattere da proteggere.
+     */
+    private const INTERPOLATION = '/\$\$|\$\{([A-Za-z_][A-Za-z0-9_]*)(?:(:?-)([A-Za-z0-9_.,:\/@%+=~ -]*))?\}|\$|[\\\\"`]/';
 
     public static function installation(DeploymentHost $dh, Installation $i, BuiltCompose $b): string
     {
@@ -24,11 +34,14 @@ final class ScriptRenderer
         if ($dh->orchestrator === Orchestrator::Swarm) {
             $services = [];
             foreach (array_values($names) as $index => $name) {
+                $def = $b->compose['services'][$name] ?? [];
+                $mode = self::mode($slug, $name, $def);
                 $services[] = [
                     'fn' => 'svc_'.$index,
                     'name' => self::quote($name),
                     'full' => self::quote($dh->stack_name.'_'.$name),
-                    'replicas' => self::replicas($slug, $name, $b->compose['services'][$name] ?? []),
+                    'replicas' => $mode === null ? self::replicas($slug, $name, $def) : null,
+                    'mode' => $mode === null ? null : self::quote($mode),
                 ];
             }
 
@@ -65,15 +78,23 @@ final class ScriptRenderer
 
         if ($dh->orchestrator === Orchestrator::Swarm) {
             $runs = [];
+            $updates = [];
             foreach ($ordered as $installation) {
-                foreach ($b->initServices[$installation->slug] ?? [] as $name => $def) {
+                $inits = $b->initServices[$installation->slug] ?? [];
+                foreach ($inits as $name => $def) {
                     $runs[] = self::dockerRun($dh, $b, (string) $name, $def);
+                }
+                if ($inits !== []) {
+                    foreach ($b->servicesBySlug[$installation->slug] ?? [] as $service) {
+                        $updates[] = self::quote($dh->stack_name.'_'.$service);
+                    }
                 }
             }
 
             return self::render('scripts.swarm.restart', [
                 'stack' => self::quote($dh->stack_name),
                 'runs' => $runs,
+                'updates' => $updates,
             ]);
         }
 
@@ -94,19 +115,24 @@ final class ScriptRenderer
     }
 
     /**
-     * Stringa tra doppie virgolette in cui solo i token ${VAR} / ${VAR:-default} restano
-     * espandibili; `$$` diventa un `$` letterale (come in compose) e ogni altro \ " ` $ è
-     * preceduto da backslash: nessuna sostituzione di comando può sopravvivere.
+     * Stringa tra doppie virgolette in cui restano espandibili solo ${NAME} (emesso come
+     * ${NAME-}, così `set -u` non interrompe: in compose una variabile assente vale vuoto),
+     * ${NAME-default} e ${NAME:-default} con default in whitelist. `$$` diventa un `$`
+     * letterale; " \ ` sono protetti da backslash; ogni altro `$` ($VAR, $(...), ${X:?},
+     * ${X:+y}, ${A:-${B}}, default con caratteri fuori whitelist) è GenerationFailed.
      */
-    public static function interpolated(string $value): string
+    public static function interpolated(string $value, string $context = 'valore'): string
     {
         self::rejectNul($value);
 
         $escaped = preg_replace_callback(
-            '/\$\$|'.self::TOKEN.'|[\\\\"`$]/',
+            self::INTERPOLATION,
             fn (array $m) => match (true) {
                 $m[0] === '$$' => '\\$',
-                strlen($m[0]) > 1 => $m[0],
+                $m[0] === '$' => throw new GenerationFailed([
+                    "{$context}: espressione con \$ non supportata (usa \${VAR}, \${VAR:-default} o \$\$)",
+                ]),
+                isset($m[1]) && $m[1] !== '' => '${'.$m[1].(($m[2] ?? '') === '' ? '-' : $m[2].$m[3]).'}',
                 default => '\\'.$m[0],
             },
             $value,
@@ -144,10 +170,10 @@ final class ScriptRenderer
         if (! isset($def['image']) || ! is_string($def['image']) || $def['image'] === '') {
             throw new GenerationFailed(["init {$name}: image mancante"]);
         }
-        $parts[] = self::interpolated($def['image']);
+        $parts[] = self::interpolated($def['image'], "init {$name}: image");
 
         foreach (self::command($name, $def['command'] ?? null) as $arg) {
-            $parts[] = self::interpolated($arg);
+            $parts[] = self::interpolated($arg, "init {$name}: command");
         }
 
         return implode(' ', $parts);
@@ -217,7 +243,9 @@ final class ScriptRenderer
         }
 
         return array_map(
-            fn (array $p) => $p[1] === null ? self::quote($p[0]) : self::quote($p[0].'=').self::interpolated($p[1]),
+            fn (array $p) => $p[1] === null
+                ? self::quote($p[0])
+                : self::quote($p[0].'=').self::interpolated($p[1], "init {$name}: environment {$p[0]}"),
             $pairs,
         );
     }
@@ -226,14 +254,14 @@ final class ScriptRenderer
     {
         if (is_string($volume)) {
             if (! str_contains($volume, ':')) {
-                return self::interpolated($volume);
+                return self::interpolated($volume, "init {$name}: volumes");
             }
             [$source, $rest] = explode(':', $volume, 2);
             if (self::isNamedVolume($source)) {
                 return self::quote(self::resourceName($dh, $b, 'volumes', $source).':'.$rest);
             }
 
-            return self::interpolated($volume);
+            return self::interpolated($volume, "init {$name}: volumes");
         }
 
         if (is_array($volume) && isset($volume['source'], $volume['target'])
@@ -244,7 +272,7 @@ final class ScriptRenderer
                 return self::quote(self::resourceName($dh, $b, 'volumes', $volume['source']).':'.$volume['target'].$suffix);
             }
 
-            return self::interpolated($volume['source'].':'.$volume['target'].$suffix);
+            return self::interpolated($volume['source'].':'.$volume['target'].$suffix, "init {$name}: volumes");
         }
 
         throw new GenerationFailed(["init {$name}: volume non supportato"]);
@@ -343,6 +371,24 @@ final class ScriptRenderer
             is_int($value), is_float($value) => (string) $value,
             default => throw new GenerationFailed(["init {$name}: ".($message ?? "{$key} non valido")]),
         };
+    }
+
+    /**
+     * Null per i servizi replicated (scalabili), altrimenti la modalità.
+     *
+     * @param  array<string, mixed>  $def
+     */
+    private static function mode(string $slug, string $name, array $def): ?string
+    {
+        $mode = is_array($def['deploy'] ?? null) ? ($def['deploy']['mode'] ?? 'replicated') : 'replicated';
+        if ($mode === 'replicated') {
+            return null;
+        }
+        if (! is_string($mode) || ! in_array($mode, self::UNSCALABLE_MODES, true)) {
+            throw new GenerationFailed(["{$slug}: deploy.mode del servizio \"{$name}\" non valido"]);
+        }
+
+        return $mode;
     }
 
     /** @param array<string, mixed> $def */

@@ -1,0 +1,142 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: '8.5'
+          extensions: pdo_sqlite, intl, zip, bcmath, pcntl, posix
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment
+        run: cp .env.example .env && php artisan key:generate
+
+      - name: Build frontend
+        run: npm ci && npm run build
+
+      - name: Pint
+        run: vendor/bin/pint --test
+
+      - name: Tests
+        run: php artisan test
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: '8.5'
+          extensions: pdo_sqlite, intl, zip, bcmath
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      # Wayfinder generates the typed route helpers from the PHP routes.
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment
+        run: cp .env.example .env && php artisan key:generate
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Lint and format
+        run: npm run check
+
+      - name: Generate route helpers
+        run: npm run build
+
+      - name: Type check
+        run: npx vue-tsc --noEmit
+
+  ssh-integration:
+    runs-on: ubuntu-latest
+    services:
+      sshd:
+        image: lscr.io/linuxserver/openssh-server:latest
+        env:
+          PASSWORD_ACCESS: 'true'
+          USER_NAME: dada
+          USER_PASSWORD: dada
+        ports:
+          - 2222:2222
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: '8.5'
+          extensions: pdo_sqlite, intl, zip, bcmath, pcntl, posix
+          tools: composer:v2
+          coverage: none
+
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment
+        run: cp .env.example .env && php artisan key:generate
+
+      - name: Wait for sshd
+        run: |
+          for _ in $(seq 1 30); do
+            sshpass -p dada ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null dada@127.0.0.1 true && exit 0
+            sleep 2
+          done
+          echo "sshd not reachable" >&2
+          exit 1
+
+      - name: SSH integration tests
+        env:
+          DADA_SSH_TEST_HOST: 127.0.0.1
+          DADA_SSH_TEST_PORT: '2222'
+          DADA_SSH_TEST_USER: dada
+          DADA_SSH_TEST_PASSWORD: dada
+        run: php artisan test --group=ssh-integration

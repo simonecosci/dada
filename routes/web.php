@@ -11,6 +11,7 @@ use App\Http\Controllers\Deployments\DeploymentHostController;
 use App\Http\Controllers\Deployments\InstallationController;
 use App\Http\Controllers\Deployments\MemberController;
 use App\Http\Controllers\Deployments\PreviewController;
+use App\Http\Controllers\Deployments\RestartController;
 use App\Http\Controllers\Deployments\RunController;
 use App\Http\Controllers\VariableRevealController;
 use Illuminate\Support\Facades\Route;
@@ -44,6 +45,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('deployments/{deployment}/hosts/{deploymentHost}/registries', [DeploymentHostController::class, 'registries'])->name('deployments.hosts.registries.update');
 
     Route::post('deployments/{deployment}/deploy', DeployController::class)->name('deployments.deploy');
+    Route::post('deployment-hosts/{deploymentHost}/restart', RestartController::class)->name('hosts.restart');
     Route::get('runs/{run}', [RunController::class, 'show'])->name('runs.show');
 
     Route::get('deployment-hosts/{deploymentHost}/preview', PreviewController::class)->name('hosts.preview');

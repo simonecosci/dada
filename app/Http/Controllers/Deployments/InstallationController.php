@@ -99,6 +99,7 @@ class InstallationController extends Controller
                 'project' => $installation->version->project->name,
                 'version' => $installation->version->version,
             ],
+            'services' => RestartController::services($installation->compose ?? []),
             'compose_yaml' => ComposeFragment::dump($installation->compose),
             'commands' => $installation->commands,
             'variables' => $installation->variables->map(fn ($v) => VariableData::forClient($v))->all(),

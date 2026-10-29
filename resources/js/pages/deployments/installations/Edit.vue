@@ -8,6 +8,7 @@ import CodeEditor from "@/components/dada/CodeEditor.vue";
 import CommandsEditor, {
     type CommandRow,
 } from "@/components/dada/CommandsEditor.vue";
+import RestartControls from "@/components/dada/RestartControls.vue";
 import VariablesEditor from "@/components/dada/VariablesEditor.vue";
 import Heading from "@/components/Heading.vue";
 import InputError from "@/components/InputError.vue";
@@ -26,6 +27,7 @@ const props = defineProps<{
         project: string;
         version: string;
     };
+    services: string[];
     compose_yaml: string;
     commands: CommandRow[];
     variables: VariableRow[];
@@ -119,6 +121,31 @@ function destroy() {
             :title="`${installation.project} ${installation.version}`"
             :description="`${deployment.name} · ${deploymentHost.path}`"
         />
+
+        <section v-if="canOperate" class="flex flex-col gap-3">
+            <h2 class="text-sm font-medium">Servizi</h2>
+            <div class="flex items-center gap-3">
+                <span class="w-40 text-sm text-muted-foreground">
+                    Tutta l'installazione
+                </span>
+                <RestartControls
+                    :deployment-host-id="deploymentHost.id"
+                    :installation-slug="installation.slug"
+                />
+            </div>
+            <div
+                v-for="service in services"
+                :key="service"
+                class="flex items-center gap-3"
+            >
+                <span class="w-40 truncate text-sm">{{ service }}</span>
+                <RestartControls
+                    :deployment-host-id="deploymentHost.id"
+                    :installation-slug="installation.slug"
+                    :service="service"
+                />
+            </div>
+        </section>
 
         <div class="grid max-w-md gap-4 md:grid-cols-2">
             <div class="grid gap-2">

@@ -6,6 +6,7 @@ use App\Generation\EffectiveVariables;
 use App\Models\Deployment;
 use App\Models\DeploymentHost;
 use App\Models\Installation;
+use App\Models\User;
 use App\Variables\VariableSync;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Symfony\Component\Process\Process;
@@ -195,4 +196,13 @@ function deploymentWithTwoHosts(): array
     $b = hostWithWordpress(['deployment_id' => $deployment->id]);
 
     return [$deployment, $a, $b];
+}
+
+/** Utente con ruolo operator sul deployment. */
+function operatorOf(Deployment $deployment): User
+{
+    $user = User::factory()->create();
+    $deployment->members()->attach($user, ['role' => 'operator']);
+
+    return $user;
 }

@@ -6,6 +6,7 @@ import DeploymentHostController from "@/actions/App/Http/Controllers/Deployments
 import InstallationController from "@/actions/App/Http/Controllers/Deployments/InstallationController";
 import CodeEditor from "@/components/dada/CodeEditor.vue";
 import DeployDialog from "@/components/dada/DeployDialog.vue";
+import RestartControls from "@/components/dada/RestartControls.vue";
 import RunsTable from "@/components/dada/RunsTable.vue";
 import type { RunSummary } from "@/lib/runs";
 import VariablesEditor from "@/components/dada/VariablesEditor.vue";
@@ -261,6 +262,11 @@ function destroy() {
             </div>
         </div>
 
+        <div v-if="canOperate" class="flex items-center gap-3">
+            <span class="text-sm text-muted-foreground">Tutto l'host</span>
+            <RestartControls :deployment-host-id="deploymentHost.id" />
+        </div>
+
         <div class="flex gap-2 border-b" role="tablist">
             <button
                 v-for="t in tabs"
@@ -311,6 +317,11 @@ function destroy() {
                                 }}</Badge>
                             </td>
                             <td class="flex justify-end gap-2 px-4 py-2">
+                                <RestartControls
+                                    v-if="canOperate"
+                                    :deployment-host-id="deploymentHost.id"
+                                    :installation-slug="i.slug"
+                                />
                                 <Button
                                     v-if="canOperate"
                                     variant="outline"

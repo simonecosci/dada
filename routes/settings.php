@@ -25,8 +25,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::inertia('settings/appearance', 'settings/Appearance')->name('appearance.edit');
 
-    Route::get('settings/api-tokens', [ApiTokenController::class, 'edit'])->name('api-tokens.edit');
-    Route::post('settings/api-tokens', [ApiTokenController::class, 'store'])->name('api-tokens.store');
+    // Creating a token that can deploy is as sensitive as the password: confirm it first, like Security.
+    Route::get('settings/api-tokens', [ApiTokenController::class, 'edit'])
+        ->middleware(RequirePassword::class)
+        ->name('api-tokens.edit');
+    Route::post('settings/api-tokens', [ApiTokenController::class, 'store'])
+        ->middleware(RequirePassword::class)
+        ->name('api-tokens.store');
     Route::delete('settings/api-tokens/{token}', [ApiTokenController::class, 'destroy'])
         ->whereNumber('token')
         ->name('api-tokens.destroy');

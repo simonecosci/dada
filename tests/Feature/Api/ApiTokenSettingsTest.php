@@ -4,6 +4,21 @@ use App\Models\User;
 use Inertia\Support\SessionKey;
 use Inertia\Testing\AssertableInertia as Assert;
 
+beforeEach(function () {
+    $this->withSession(['auth.password_confirmed_at' => time()]);
+});
+
+it('asks to confirm the password before showing or creating tokens', function () {
+    $this->flushSession();
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get(route('api-tokens.edit'))->assertRedirect(route('password.confirm'));
+    $this->actingAs($user)->post(route('api-tokens.store'), ['name' => 'ci', 'ability' => 'deploy'])
+        ->assertRedirect(route('password.confirm'));
+
+    expect($user->tokens()->count())->toBe(0);
+});
+
 it('lists the user\'s tokens without their values', function () {
     $user = User::factory()->create();
     $user->createToken('ci', ['read', 'deploy']);

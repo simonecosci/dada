@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 class HostGlobalSync
 {
     /**
-     * Porta sull'host le variabili host-global dichiarate da una versione.
+     * Brings onto the host the host-global variables declared by a version.
      *
      * @param  Collection<int, Variable>  $versionVars
      * @return list<string> warnings
@@ -48,8 +48,8 @@ class HostGlobalSync
 
             if ($var->default !== null && $var->default !== $current->default) {
                 $warnings[] = $current->secret
-                    ? "{$var->key}: default dell'host mantenuto"
-                    : "{$var->key}: default dell'host mantenuto (versione: {$var->default})";
+                    ? "{$var->key}: host default kept"
+                    : "{$var->key}: host default kept (version: {$var->default})";
             }
         }
 
@@ -57,7 +57,7 @@ class HostGlobalSync
     }
 
     /**
-     * Chiavi host-global dell'host che nessuna versione d'origine delle installazioni dichiara.
+     * Host-global keys of the host that no source version of the installations declares.
      *
      * @return list<string>
      */

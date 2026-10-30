@@ -39,7 +39,7 @@ class ProjectVersion extends Model
             }
 
             if ($version->isDirty(['compose', 'commands', 'version'])) {
-                throw new DomainException('Una versione pubblicata è immutabile.');
+                throw new DomainException('A published version is immutable.');
             }
         });
     }

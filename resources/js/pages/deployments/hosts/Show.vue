@@ -54,12 +54,12 @@ defineOptions({
 });
 
 const tabs = [
-    { key: 'installations', label: 'Installazioni' },
-    { key: 'variables', label: 'Variabili host' },
+    { key: 'installations', label: 'Installations' },
+    { key: 'variables', label: 'Host variables' },
     { key: 'registries', label: 'Registry' },
     { key: 'template', label: 'Template compose' },
     { key: 'files', label: 'File' },
-    { key: 'runs', label: 'Esecuzioni' },
+    { key: 'runs', label: 'Runs' },
 ] as const;
 const tab = ref<(typeof tabs)[number]['key']>('installations');
 
@@ -67,7 +67,7 @@ const hostParams = computed(
     () => [props.deployment.id, props.deploymentHost.id] as [number, number],
 );
 
-// Installazioni: ordinamento con frecce
+// Installations: reordering with arrows
 const order = ref<number[]>(props.installations.map((i) => i.id));
 const sorted = computed(() =>
     order.value
@@ -92,7 +92,7 @@ function move(index: number, delta: -1 | 1) {
     );
 }
 
-// Variabili host-global
+// Host-global variables
 const variablesForm = useForm({
     variables: props.variables as VariableRow[],
 });
@@ -148,7 +148,7 @@ function saveTemplate() {
     });
 }
 
-// File generati (anteprima)
+// Generated files (preview)
 type Preview = {
     files: Record<string, string>;
     errors: string[];
@@ -220,7 +220,7 @@ const fileLanguage = computed<'yaml' | 'shell' | 'plaintext'>(() => {
 function destroy() {
     if (
         confirm(
-            `Rimuovere l'host ${props.deploymentHost.host.name} dal deployment? Verranno eliminate anche le installazioni.`,
+            `Remove host ${props.deploymentHost.host.name} from the deployment? Its installations will be deleted as well.`,
         )
     ) {
         router.delete(DeploymentHostController.destroy(hostParams.value).url);
@@ -251,22 +251,22 @@ function destroy() {
                 />
                 <Button v-if="canOperate" variant="outline" as-child>
                     <Link :href="DeploymentHostController.edit(hostParams)">
-                        Impostazioni
+                        Settings
                     </Link>
                 </Button>
                 <Button variant="outline" as-child>
                     <Link :href="DeploymentController.show(deployment.id)">
-                        Torna al deployment
+                        Back to deployment
                     </Link>
                 </Button>
                 <Button v-if="canOperate" variant="destructive" @click="destroy"
-                    >Rimuovi</Button
+                    >Remove</Button
                 >
             </div>
         </div>
 
         <div v-if="canOperate" class="flex items-center gap-3">
-            <span class="text-sm text-muted-foreground">Tutto l'host</span>
+            <span class="text-sm text-muted-foreground">Whole host</span>
             <RestartControls :deployment-host-id="deploymentHost.id" />
         </div>
 
@@ -299,10 +299,10 @@ function destroy() {
                     <thead class="bg-muted/50 text-left">
                         <tr>
                             <th class="px-4 py-2 font-medium">Slug</th>
-                            <th class="px-4 py-2 font-medium">Progetto</th>
-                            <th class="px-4 py-2 font-medium">Versione</th>
+                            <th class="px-4 py-2 font-medium">Project</th>
+                            <th class="px-4 py-2 font-medium">Version</th>
                             <th class="px-4 py-2 text-right font-medium">
-                                Azioni
+                                Actions
                             </th>
                         </tr>
                     </thead>
@@ -330,7 +330,7 @@ function destroy() {
                                     variant="outline"
                                     size="sm"
                                     :disabled="idx === 0"
-                                    :aria-label="`Sposta ${i.slug} in alto`"
+                                    :aria-label="`Move ${i.slug} up`"
                                     @click="move(idx, -1)"
                                 >
                                     ↑
@@ -340,7 +340,7 @@ function destroy() {
                                     variant="outline"
                                     size="sm"
                                     :disabled="idx === sorted.length - 1"
-                                    :aria-label="`Sposta ${i.slug} in basso`"
+                                    :aria-label="`Move ${i.slug} down`"
                                     @click="move(idx, 1)"
                                 >
                                     ↓
@@ -351,7 +351,7 @@ function destroy() {
                                             InstallationController.edit(i.id)
                                         "
                                     >
-                                        Modifica
+                                        Edit
                                     </Link>
                                 </Button>
                             </td>
@@ -361,7 +361,7 @@ function destroy() {
                                 colspan="4"
                                 class="px-4 py-6 text-center text-muted-foreground"
                             >
-                                Nessuna installazione.
+                                No installations.
                             </td>
                         </tr>
                     </tbody>
@@ -372,7 +372,7 @@ function destroy() {
                     <Link
                         :href="InstallationController.create(deploymentHost.id)"
                     >
-                        Installa versione
+                        Install version
                     </Link>
                 </Button>
             </div>
@@ -387,9 +387,9 @@ function destroy() {
                 class="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm"
                 data-test="unused-variables"
             >
-                Variabili non più dichiarate da nessuna versione installata:
+                Variables no longer declared by any installed version:
                 <strong>{{ unused.join(', ') }}</strong
-                >. Puoi rimuoverle se non servono più.
+                >. You can remove them if they are no longer needed.
             </p>
             <VariablesEditor
                 v-model="variablesForm.variables"
@@ -404,7 +404,7 @@ function destroy() {
                     data-test="save-host-variables"
                     @click="saveVariables"
                 >
-                    Salva variabili
+                    Save variables
                 </Button>
             </div>
         </div>
@@ -414,7 +414,7 @@ function destroy() {
             class="flex max-w-xl flex-col gap-4"
         >
             <p class="text-sm text-muted-foreground">
-                Credenziali registry usate per il login Docker su questo host.
+                Registry credentials used for the Docker login on this host.
             </p>
             <label
                 v-for="r in availableRegistries"
@@ -436,7 +436,7 @@ function destroy() {
                 v-if="availableRegistries.length === 0"
                 class="text-sm text-muted-foreground"
             >
-                Nessuna credenziale di tipo registry disponibile.
+                No registry-type credentials available.
             </p>
             <InputError
                 :message="
@@ -451,7 +451,7 @@ function destroy() {
                     data-test="save-registries"
                     @click="saveRegistries"
                 >
-                    Salva registry
+                    Save registry
                 </Button>
             </div>
         </div>
@@ -461,8 +461,8 @@ function destroy() {
             class="flex max-w-4xl flex-col gap-4"
         >
             <p class="text-sm text-muted-foreground">
-                Sono ammesse solo le chiavi <code>volumes</code> e
-                <code>networks</code>.
+                Only the <code>volumes</code> and <code>networks</code> keys are
+                allowed.
             </p>
             <CodeEditor
                 v-model="templateForm.compose_template"
@@ -476,7 +476,7 @@ function destroy() {
                     data-test="save-template"
                     @click="saveTemplate"
                 >
-                    Salva template
+                    Save template
                 </Button>
             </div>
         </div>
@@ -491,7 +491,7 @@ function destroy() {
                     data-test="reveal-preview"
                     @click="loadPreview(true)"
                 >
-                    Mostra segreti
+                    Show secrets
                 </Button>
                 <Button
                     variant="outline"
@@ -500,18 +500,18 @@ function destroy() {
                     data-test="reload-preview"
                     @click="loadPreview(revealed)"
                 >
-                    Ricarica
+                    Reload
                 </Button>
             </div>
 
             <p v-if="previewFailed" class="text-sm text-red-600">
-                Impossibile caricare l'anteprima.
+                Unable to load the preview.
             </p>
             <p
                 v-else-if="previewLoading && preview === null"
                 class="text-sm text-muted-foreground"
             >
-                Caricamento…
+                Loading…
             </p>
 
             <template v-if="preview">
@@ -528,7 +528,7 @@ function destroy() {
                     data-test="preview-missing"
                 >
                     <li v-for="m in preview.missingRequired" :key="m">
-                        Variabile obbligatoria mancante: {{ m }}
+                        Missing required variable: {{ m }}
                     </li>
                 </ul>
                 <ul
@@ -543,7 +543,7 @@ function destroy() {
                     v-if="fileNames.length === 0"
                     class="text-sm text-muted-foreground"
                 >
-                    Nessun file generato.
+                    No files generated.
                 </p>
                 <div v-else class="grid gap-4 md:grid-cols-[14rem_1fr]">
                     <ul class="flex flex-col gap-1" data-test="preview-files">

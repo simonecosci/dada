@@ -5,7 +5,7 @@ namespace App\Generation;
 final class GeneratedFiles
 {
     /**
-     * @param  array<string, string>  $files  nome => contenuto
+     * @param  array<string, string>  $files  name => content
      * @param  list<string>  $errors
      * @param  list<string>  $warnings
      * @param  list<string>  $missingRequired
@@ -27,8 +27,8 @@ final class GeneratedFiles
     }
 
     /**
-     * I file con ogni valore segreto sostituito da `******`, anche nella forma con escape
-     * che EnvFileWriter produce tra doppi apici. I valori più lunghi vanno per primi.
+     * The files with every secret value replaced by `******`, including the escaped form
+     * that EnvFileWriter produces between double quotes. Longer values go first.
      *
      * @return array<string, string>
      */

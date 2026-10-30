@@ -93,13 +93,13 @@ class HostController extends Controller
 
         if (Host::where('jump_host_id', $host->id)->exists()) {
             throw ValidationException::withMessages([
-                'host' => 'L\'host è usato come jump host da altri host.',
+                'host' => 'The host is used as a jump host by other hosts.',
             ]);
         }
 
         if (DeploymentHost::where('host_id', $host->id)->exists()) {
             throw ValidationException::withMessages([
-                'host' => 'L\'host è usato da uno o più deployment.',
+                'host' => 'The host is used by one or more deployments.',
             ]);
         }
 
@@ -114,7 +114,7 @@ class HostController extends Controller
 
         HostCheckJob::dispatch($host->id);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Verifica dell\'host avviata.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Host check started.']);
 
         return back();
     }
@@ -130,7 +130,7 @@ class HostController extends Controller
             try {
                 $fingerprints[] = HostKeyFingerprint::sha256($line);
             } catch (InvalidArgumentException) {
-                // Riga non valida: non mostrata.
+                // Invalid line: not shown.
             }
         }
 
@@ -143,7 +143,7 @@ class HostController extends Controller
 
         $host->forceFill(['host_key' => null])->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Chiave host azzerata: verrà registrata al prossimo collegamento.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Host key cleared: it will be recorded on the next connection.']);
 
         return back();
     }
@@ -160,7 +160,7 @@ class HostController extends Controller
             'username' => ['required', 'string', 'max:255', 'regex:/\A[A-Za-z0-9._][A-Za-z0-9._-]*\z/'],
             'credential_id' => ['required', 'integer', 'exists:credentials,id', function (string $attribute, mixed $value, Closure $fail): void {
                 if (Credential::find($value)?->type === CredentialType::Registry) {
-                    $fail('Una credenziale registry non è usabile per SSH.');
+                    $fail('A registry credential cannot be used for SSH.');
                 }
             }],
             'jump_host_id' => ['nullable', 'integer', 'exists:hosts,id', function (string $attribute, mixed $value, Closure $fail) use ($host): void {
@@ -170,8 +170,8 @@ class HostController extends Controller
             }],
             'sudo' => ['nullable', 'string', 'max:255'],
         ], [
-            'hostname.regex' => 'L\'hostname può contenere solo lettere, cifre, ".", "-", ":" e "_" (o un indirizzo IPv6 tra parentesi quadre).',
-            'username.regex' => 'Lo username può contenere solo lettere, cifre, ".", "_" e "-" (non come primo carattere).',
+            'hostname.regex' => 'The hostname may only contain letters, digits, ".", "-", ":" and "_" (or an IPv6 address in square brackets).',
+            'username.regex' => 'The username may only contain letters, digits, ".", "_" and "-" (not as the first character).',
         ]);
 
         $data['sudo'] ??= '';

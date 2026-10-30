@@ -5,7 +5,7 @@ x-dada-env:
     APP_ENV: production
     APP_DEBUG: 'false'
 
-x-dada: &dada
+x-dada-base: &dada-base
     image: ghcr.io/simonecosci/dada:latest
     env_file: .env
     restart: unless-stopped
@@ -17,7 +17,26 @@ x-dada: &dada
     volumes:
         - storage:/var/www/html/storage
 
+# Every long-running service starts only after `init` has migrated and seeded.
+x-dada: &dada
+    <<: *dada-base
+    depends_on:
+        postgres:
+            condition: service_healthy
+        redis:
+            condition: service_started
+        init:
+            condition: service_completed_successfully
+
 services:
+    # Install/update: runs migrations and the first-admin seeder, then exits.
+    init:
+        <<: *dada-base
+        restart: 'no'
+        environment:
+            <<: *dada-env
+            DADA_ROLE: init
+
     app:
         <<: *dada
         environment:

@@ -1,49 +1,191 @@
 # dada
 
-Continuous Delivery di stack Docker su server propri.
+Continuous delivery of Docker stacks to your own servers.
 
-## Sviluppo
+dada is an open source web app to define **projects** (e.g. `wordpress`) with **versions**, install them on the hosts of a **deployment**, and deploy them over SSH. For every host dada generates the deploy files: `docker-compose.yml`, `.env`, `.env.<project>` and restart scripts. It uploads them and runs the remote commands in background jobs with live logs.
 
-```bash
-cp .env.example .env   # poi imposta APP_ENV=local e APP_DEBUG=true
-composer install
-npm install
-php artisan key:generate
-composer run dev
-php artisan test
-```
+## Features
 
-`.env.example` ha i default di produzione (`APP_ENV=production`, `APP_DEBUG=false`): in `local` Horizon e' accessibile a chiunque, quindi `local` va impostato solo sulla macchina di sviluppo.
+- **Catalog.**
+    - Projects have versions. You can clone a version or publish it, and a published version is immutable.
+    - Each version holds its compose services (edited as YAML, stored as structured data) and its variables.
+    - A variable can be required or secret, and has a scope: `container` (goes into `.env.<slug>`), `compose` (goes into `.env`) or `host-global`.
+- **Infrastructure.**
+    - Credentials: password, SSH key or registry. They are encrypted at rest and never returned in clear text.
+    - Hosts can sit behind chained jump hosts, use a sudo prefix and have health checks.
+    - The host key is trusted on first use: it is stored at the first connection, and a later change fails the connection.
+- **Deployments.**
+    - Each deployment has a team with per-deployment roles: Admin, Operator, Viewer, plus a Maintainer permission for the catalog.
+    - An installation is an editable copy of a version on one host of the deployment.
+    - The orchestrator is Docker Compose or Docker Swarm, chosen per host.
+- **Generation.**
+    - Files are previewed before they are uploaded, with secrets masked for users who cannot reveal them.
+    - The YAML is built as a data structure, never from string templates.
+    - Generation stops with a clear error on any conflict or invalid input.
+- **Deploy.**
+    - Only one deploy runs per deployment at a time.
+    - Before a deploy, dada takes a backup and checks free disk space.
+    - It logs in to private registries and removes the services of uninstalled installations.
+    - Logs stream live over websockets, with secrets masked.
+- **Restart.**
+    - Each installation gets a `<slug>.sh start|stop|restart|status [service|all]` script.
+    - Each host gets a `restart.sh` that restarts every installation on it.
 
-## Installazione con Docker
+Planned next: version upgrades with a side-by-side diff, rollback, project commands from the UI, scheduled deploys, a web SSH console with session recording, monitoring and maintenance reminders, and an MCP server for LLM clients.
 
-L'immagine (`ghcr.io/simonecosci/dada`) si avvia con `DADA_ROLE=web|worker|scheduler|reverb|all` (default `all`):
+## Running with Docker
 
-| Ruolo       | Processi                                                                                                              |
-| ----------- | --------------------------------------------------------------------------------------------------------------------- |
-| `web`       | nginx + php-fpm sulla porta 8000 (proxy websocket `/app` e `/apps` verso `REVERB_UPSTREAM`, default `127.0.0.1:8080`) |
-| `worker`    | `php artisan horizon` (code `default` e `deploy`)                                                                     |
-| `scheduler` | `php artisan schedule:work`                                                                                           |
-| `reverb`    | `php artisan reverb:start --host=0.0.0.0 --port=8080`                                                                 |
-| `all`       | tutti i precedenti nello stesso container                                                                             |
-
-All'avvio l'entrypoint genera la configurazione nginx, esegue `php artisan migrate --force` (solo se `DADA_MIGRATE=true`; default `true` per `web` e `all`, `false` per gli altri ruoli), esegue `php artisan optimize` e avvia `supervisord` in foreground.
+The image is published as `ghcr.io/simonecosci/dada`.
 
 ```bash
 cp docker-compose.example.yml docker-compose.yml
-cp .env.example .env   # imposta APP_KEY, DB_PASSWORD, REVERB_APP_KEY, REVERB_APP_SECRET
-docker compose up -d
-docker compose exec app php artisan dada:admin tu@example.com
+cp .env.example .env
 ```
 
-`APP_KEY` si genera con `docker compose run --rm app php artisan key:generate --show`; le credenziali Reverb con `openssl rand -hex 16` (key) e `openssl rand -hex 32` (secret). Le variabili `DADA_*` sono documentate in `.env.example`.
+Fill in `.env`:
 
-### Build dell'immagine
+| Variable                               | How to get it                                                                           |
+| -------------------------------------- | --------------------------------------------------------------------------------------- |
+| `APP_KEY`                              | `docker run --rm --entrypoint php ghcr.io/simonecosci/dada artisan key:generate --show` |
+| `DB_PASSWORD`                          | any strong password                                                                     |
+| `REVERB_APP_KEY` / `REVERB_APP_SECRET` | `openssl rand -hex 16` / `openssl rand -hex 32`                                         |
+| `DADA_ADMIN_EMAIL`                     | email of the first admin                                                                |
+| `DADA_ADMIN_PASSWORD`                  | optional, see below                                                                     |
+
+Then start the stack:
+
+```bash
+docker compose up -d
+docker compose logs init
+```
+
+### Install and update
+
+The `init` service runs before every other dada service and then exits:
+
+1. `php artisan migrate --force` creates the schema on the first start and applies new migrations on upgrades.
+2. `php artisan db:seed --force` creates the first admin from `DADA_ADMIN_EMAIL`, with `DADA_ADMIN_NAME` as an optional name.
+
+The seeder only acts while no admin exists, so changing these variables later has no effect. If `DADA_ADMIN_PASSWORD` is empty, a random password is generated and printed once in the `init` log. Copy it from `docker compose logs init`.
+
+To add or promote admins later, run:
+
+```bash
+docker compose exec app php artisan dada:admin someone@example.com
+```
+
+To upgrade, pull the new image and recreate the stack. `init` migrates first, then the other services start:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+### Container roles
+
+Each container picks its processes with `DADA_ROLE`:
+
+| Role        | Runs                                                                                                                         |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `init`      | migrations and the seeder, then exits                                                                                        |
+| `web`       | nginx + php-fpm on port 8000. Websocket paths `/app` and `/apps` are proxied to `REVERB_UPSTREAM` (default `127.0.0.1:8080`) |
+| `worker`    | `php artisan horizon` (queues `default` and `deploy`)                                                                        |
+| `scheduler` | `php artisan schedule:work`                                                                                                  |
+| `reverb`    | `php artisan reverb:start --host=0.0.0.0 --port=8080`                                                                        |
+| `all`       | install step + web, worker, scheduler and reverb in one container (the default)                                              |
+
+On start the entrypoint does the following:
+
+1. Renders the nginx config for the `web` and `all` roles.
+2. Runs the install step when `DADA_INSTALL=true`. That is the default for `init` and `all`; set it to `true` on another role only if you run without an `init` service.
+3. Runs `php artisan optimize`.
+4. Starts `supervisord` in the foreground.
+
+The dada container must be on a network that can reach your hosts, or their jump hosts. A worker running a deploy is stopped gracefully: the example compose file gives it a one-hour `stop_grace_period`.
+
+### Configuration
+
+All variables are documented in [.env.example](.env.example). The dada-specific ones:
+
+| Variable                         | Default             | Meaning                                                        |
+| -------------------------------- | ------------------- | -------------------------------------------------------------- |
+| `DADA_ROLE`                      | `all`               | container role, see above                                      |
+| `DADA_INSTALL`                   | `true` for init/all | run migrations and seeder at start                             |
+| `DADA_ADMIN_EMAIL`               |                     | first admin email                                              |
+| `DADA_ADMIN_NAME`                | email local part    | first admin name                                               |
+| `DADA_ADMIN_PASSWORD`            | generated           | first admin password                                           |
+| `REVERB_UPSTREAM`                | `127.0.0.1:8080`    | where nginx proxies websocket traffic                          |
+| `REVERB_CLIENT_HOST/PORT/SCHEME` | page origin         | Reverb endpoint the browser connects to                        |
+| `DADA_DEPLOY_MIN_FREE_MB`        | `1024`              | minimum free disk space on a host before a deploy              |
+| `DADA_DEPLOY_BACKUP_RETENTION`   | `10`                | pre-deploy backups kept per deployment host                    |
+| `DADA_DEPLOY_LOCK_TTL`           | `3600`              | TTL in seconds of the deploy lock, also the deploy job timeout |
+| `DADA_DEPLOY_RETRY_AFTER`        | lock TTL + 120      | `retry_after` of the `redis-deploy` queue connection           |
+| `DADA_SSH_CONNECT_TIMEOUT`       | `10`                | SSH connect timeout in seconds                                 |
+| `DADA_SSH_COMMAND_TIMEOUT`       | `1800`              | SSH command timeout in seconds                                 |
+
+The Reverb client config is not baked into the frontend bundle. The browser receives it at runtime, and the secret is never sent. With the Docker image the defaults work as they are, because nginx forwards `/app` to Reverb on the same origin.
+
+`.env.example` ships production defaults (`APP_ENV=production`, `APP_DEBUG=false`). With `APP_ENV=local` the Horizon dashboard is open to anyone, so use `local` only on a development machine.
+
+## API
+
+A JSON API under `/api/v1` covers operations, for example from a CI pipeline: read deployments, hosts, installations and runs, start a deploy or a restart, and follow a run and its log. It does not manage the catalog, credentials, hosts or users, and it never returns secrets.
+
+Create a token in **Settings → API tokens**. The token is shown once. A token acts with the permissions of its user and has one of two abilities:
+
+- **Read only** (`read`): the `GET` endpoints.
+- **Read and deploy** (`read`, `deploy`): also `POST …/deploy` and `POST …/restart`. These still require the Operator role on the deployment, or Admin.
+
+Send the token as `Authorization: Bearer <token>`. Deployments you cannot see answer `404`. The rate limit is 60 requests per minute per user. The OpenAPI reference is at `/docs/api` (JSON at `/docs/api.json`) for any logged-in user.
+
+```bash
+# Deploy: 202 with the run, 409 if a run is in progress, 422 with "removals" to confirm
+curl -X POST https://dada.example.com/api/v1/deployments/1/deploy \
+  -H "Authorization: Bearer $DADA_TOKEN" -H "Accept: application/json" \
+  -H "Content-Type: application/json" -d '{"pull": true, "restart": true}'
+
+# Follow the run: poll the log from the last line seen until the run is succeeded or failed
+curl "https://dada.example.com/api/v1/runs/42/logs?after=0" \
+  -H "Authorization: Bearer $DADA_TOKEN" -H "Accept: application/json"
+```
+
+The log answer carries `meta.last_id` (the next `after`), `meta.has_more` and `meta.run_status`.
+
+## Development
+
+Requirements: PHP 8.5, Composer, Node.js, PostgreSQL and Redis.
+
+```bash
+cp .env.example .env   # then set APP_ENV=local, APP_DEBUG=true and DADA_ADMIN_EMAIL
+composer install
+npm install
+php artisan key:generate
+php artisan migrate --seed
+composer run dev
+```
+
+Run the tests:
+
+```bash
+php artisan test
+```
+
+The SSH integration tests are skipped unless a test SSH server is configured. CI runs them against throwaway containers, including a jump-host case; see [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
+### Building the image
 
 ```bash
 docker build -t dada:dev .
 ```
 
-La configurazione del client Reverb non e' incorporata nel bundle: il browser la riceve a runtime dal server (prop Inertia condivisa `reverb`, con `REVERB_APP_KEY` e gli opzionali `REVERB_CLIENT_HOST`, `REVERB_CLIENT_PORT`, `REVERB_CLIENT_SCHEME`; il secret non viene mai inviato). Se `REVERB_CLIENT_*` sono vuote il browser usa l'origine della pagina, corretta con l'immagine Docker perche' nginx inoltra `/app` a Reverb. Le `VITE_REVERB_*` restano solo come fallback per lo sviluppo locale. Lo stage degli asset include PHP e `vendor` perche' il plugin Wayfinder di Vite esegue `php artisan wayfinder:generate`.
+For a local smoke test, add a `docker-compose.override.yml` (git-ignored) that sets `image: dada:dev` on the `init`, `app`, `worker`, `scheduler` and `reverb` services.
 
-Per uno smoke test locale usa un `docker-compose.override.yml` (ignorato da git) che imposta `image: dada:dev` sui servizi `app`, `worker`, `scheduler` e `reverb`.
+CI runs on every push and pull request. When every job passes on `main` or on a `v*` tag, the image is published to `ghcr.io`.
+
+## Stack
+
+Laravel 13, PHP 8.5, Inertia + Vue 3 + TypeScript, shadcn-vue, PostgreSQL, Redis, Horizon, Reverb and Pest.
+
+## License
+
+[MIT](LICENSE)

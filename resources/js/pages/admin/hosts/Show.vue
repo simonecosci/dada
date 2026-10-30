@@ -36,7 +36,7 @@ function check() {
 function resetKey() {
     if (
         confirm(
-            `Azzerare la chiave host di "${props.host.name}"? Verrà accettata la chiave presentata al prossimo collegamento.`,
+            `Reset the host key of "${props.host.name}"? The key presented on the next connection will be accepted.`,
         )
     ) {
         router.post(
@@ -69,39 +69,39 @@ defineOptions({
                 :description="`${host.username}@${host.hostname}:${host.port}`"
             />
             <Button variant="outline" as-child>
-                <Link :href="HostController.edit(host.id)">Modifica</Link>
+                <Link :href="HostController.edit(host.id)">Edit</Link>
             </Button>
         </div>
 
         <dl class="grid grid-cols-[10rem_1fr] gap-2 text-sm">
-            <dt class="text-muted-foreground">Credenziale</dt>
+            <dt class="text-muted-foreground">Credential</dt>
             <dd>{{ host.credential?.name }} ({{ host.credential?.type }})</dd>
 
             <dt class="text-muted-foreground">Jump host</dt>
-            <dd>{{ host.jump_host?.name ?? 'Nessuno' }}</dd>
+            <dd>{{ host.jump_host?.name ?? 'None' }}</dd>
 
-            <dt class="text-muted-foreground">Prefisso sudo</dt>
-            <dd>{{ host.sudo || 'Nessuno' }}</dd>
+            <dt class="text-muted-foreground">Sudo prefix</dt>
+            <dd>{{ host.sudo || 'None' }}</dd>
 
-            <dt class="text-muted-foreground">Raggiungibilità</dt>
+            <dt class="text-muted-foreground">Reachability</dt>
             <dd>
-                <Badge v-if="host.reachable === true">Raggiungibile</Badge>
+                <Badge v-if="host.reachable === true">Reachable</Badge>
                 <Badge
                     v-else-if="host.reachable === false"
                     variant="destructive"
                 >
-                    Non raggiungibile
+                    Unreachable
                 </Badge>
-                <Badge v-else variant="secondary">Non verificato</Badge>
+                <Badge v-else variant="secondary">Not verified</Badge>
             </dd>
 
-            <dt class="text-muted-foreground">Ultima verifica</dt>
-            <dd>{{ host.checked_at ?? 'Mai' }}</dd>
+            <dt class="text-muted-foreground">Last check</dt>
+            <dd>{{ host.checked_at ?? 'Never' }}</dd>
 
-            <dt class="text-muted-foreground">Chiave host</dt>
+            <dt class="text-muted-foreground">Host key</dt>
             <dd>
                 <template v-if="host.has_host_key">
-                    Registrata
+                    Registered
                     <code
                         v-for="fingerprint in host.host_key_fingerprints"
                         :key="fingerprint"
@@ -109,7 +109,7 @@ defineOptions({
                         >{{ fingerprint }}</code
                     >
                 </template>
-                <template v-else>Non registrata</template>
+                <template v-else>Not registered</template>
             </dd>
         </dl>
 
@@ -120,18 +120,18 @@ defineOptions({
                 class="overflow-x-auto rounded-lg bg-muted p-3 text-xs"
                 >{{ JSON.stringify(host.facts, null, 2) }}</pre>
             <p v-else class="text-sm text-muted-foreground">
-                Nessun dato raccolto.
+                No data collected.
             </p>
         </div>
 
         <div class="flex gap-2">
-            <Button @click="check">Verifica</Button>
+            <Button @click="check">Check</Button>
             <Button
                 v-if="host.has_host_key"
                 variant="outline"
                 @click="resetKey"
             >
-                Reset chiave host
+                Reset host key
             </Button>
         </div>
     </div>

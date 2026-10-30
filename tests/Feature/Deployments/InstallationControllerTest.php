@@ -28,13 +28,13 @@ function viewerFor(Deployment $d): User
 }
 
 it('adds a host to a deployment with defaults from the slug', function () {
-    $d = Deployment::factory()->create(['slug' => 'cliente-x']);
+    $d = Deployment::factory()->create(['slug' => 'client-x']);
     $host = Host::factory()->create();
     $this->actingAs(operatorFor($d))->post(route('deployments.hosts.store', $d), [
-        'host_id' => $host->id, 'path' => '/srv/cliente-x', 'orchestrator' => 'compose',
+        'host_id' => $host->id, 'path' => '/srv/client-x', 'orchestrator' => 'compose',
     ])->assertRedirect();
     $dh = DeploymentHost::first();
-    expect($dh->stack_name)->toBe('cliente-x')->and($dh->deployment_id)->toBe($d->id)->and($dh->compose_template)->toBe([]);
+    expect($dh->stack_name)->toBe('client-x')->and($dh->deployment_id)->toBe($d->id)->and($dh->compose_template)->toBe([]);
 });
 
 it('forbids viewers and non members from managing hosts', function () {
@@ -293,7 +293,7 @@ it('ignores structural variable fields in installation updates', function () {
         ->and($secret->value)->toBe('v1')->and($secret->use_default)->toBeFalse()
         ->and($plain->default)->toBe('false')->and($plain->value)->toBe('v2');
 
-    // un segreto senza la chiave value resta invariato
+    // a secret without the value key stays unchanged
     $this->actingAs($op)->put(route('installations.update', $inst), [...$base, 'variables' => [
         ['id' => $secret->id, 'use_default' => false],
     ]])->assertSessionHasNoErrors();
@@ -361,12 +361,12 @@ it('reserves the restart slug on install and update', function () {
     $v = ProjectVersion::factory()->published()->create();
 
     $this->actingAs($op)->post(route('hosts.installations.store', $dh), ['project_version_id' => $v->id, 'slug' => 'restart'])
-        ->assertSessionHasErrors(['slug' => 'lo slug "restart" è riservato']);
+        ->assertSessionHasErrors(['slug' => 'the slug "restart" is reserved']);
     expect($dh->installations()->count())->toBe(0);
 
     $inst = Installation::factory()->for($dh)->create(['slug' => 'wp']);
     $this->actingAs($op)->put(route('installations.update', $inst), [
         'slug' => 'restart', 'order' => 1, 'compose_yaml' => "services:\n  wp:\n    image: x\n", 'commands' => [], 'variables' => [],
-    ])->assertSessionHasErrors(['slug' => 'lo slug "restart" è riservato']);
+    ])->assertSessionHasErrors(['slug' => 'the slug "restart" is reserved']);
     expect($inst->refresh()->slug)->toBe('wp');
 });

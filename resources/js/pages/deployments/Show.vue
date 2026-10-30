@@ -55,14 +55,14 @@ defineOptions({
 
 const tabs = [
     { key: 'hosts', label: 'Host' },
-    { key: 'members', label: 'Membri' },
-    { key: 'runs', label: 'Esecuzioni' },
+    { key: 'members', label: 'Members' },
+    { key: 'runs', label: 'Runs' },
 ] as const;
 const tab = ref<(typeof tabs)[number]['key']>('members');
 
 const roleLabels: Record<Role, string> = {
-    operator: 'Operatore',
-    viewer: 'Osservatore',
+    operator: 'Operator',
+    viewer: 'Viewer',
 };
 
 const addForm = useForm<{ user_id: number | ''; role: Role }>({
@@ -86,7 +86,7 @@ function changeRole(member: Member, role: Role) {
 }
 
 function removeMember(member: Member) {
-    if (confirm(`Rimuovere ${member.name} dal deployment?`)) {
+    if (confirm(`Remove ${member.name} from the deployment?`)) {
         router.delete(
             MemberController.destroy([props.deployment.id, member.id]).url,
             { preserveScroll: true },
@@ -95,7 +95,7 @@ function removeMember(member: Member) {
 }
 
 function destroy() {
-    if (confirm(`Cancellare il deployment ${props.deployment.name}?`)) {
+    if (confirm(`Delete deployment ${props.deployment.name}?`)) {
         router.delete(DeploymentController.destroy(props.deployment.id).url);
     }
 }
@@ -122,11 +122,11 @@ function destroy() {
                 />
                 <Button v-if="canUpdate" variant="outline" as-child>
                     <Link :href="DeploymentController.edit(deployment.id)">
-                        Modifica
+                        Edit
                     </Link>
                 </Button>
                 <Button v-if="canDelete" variant="destructive" @click="destroy">
-                    Cancella
+                    Delete
                 </Button>
             </div>
         </div>
@@ -157,11 +157,11 @@ function destroy() {
                     <thead class="bg-muted/50 text-left">
                         <tr>
                             <th class="px-4 py-2 font-medium">Host</th>
-                            <th class="px-4 py-2 font-medium">Percorso</th>
-                            <th class="px-4 py-2 font-medium">Orchestratore</th>
-                            <th class="px-4 py-2 font-medium">Installazioni</th>
+                            <th class="px-4 py-2 font-medium">Path</th>
+                            <th class="px-4 py-2 font-medium">Orchestrator</th>
+                            <th class="px-4 py-2 font-medium">Installations</th>
                             <th class="px-4 py-2 text-right font-medium">
-                                Azioni
+                                Actions
                             </th>
                         </tr>
                     </thead>
@@ -188,7 +188,7 @@ function destroy() {
                                             ])
                                         "
                                     >
-                                        Apri
+                                        Open
                                     </Link>
                                 </Button>
                             </td>
@@ -198,7 +198,7 @@ function destroy() {
                                 colspan="5"
                                 class="px-4 py-6 text-center text-muted-foreground"
                             >
-                                Nessun host.
+                                No hosts.
                             </td>
                         </tr>
                     </tbody>
@@ -209,7 +209,7 @@ function destroy() {
                     <Link
                         :href="DeploymentHostController.create(deployment.id)"
                     >
-                        Aggiungi host
+                        Add host
                     </Link>
                 </Button>
             </div>
@@ -224,14 +224,14 @@ function destroy() {
                 <table class="w-full text-sm">
                     <thead class="bg-muted/50 text-left">
                         <tr>
-                            <th class="px-4 py-2 font-medium">Utente</th>
+                            <th class="px-4 py-2 font-medium">User</th>
                             <th class="px-4 py-2 font-medium">Email</th>
-                            <th class="px-4 py-2 font-medium">Ruolo</th>
+                            <th class="px-4 py-2 font-medium">Role</th>
                             <th
                                 v-if="canManageMembers"
                                 class="px-4 py-2 text-right font-medium"
                             >
-                                Azioni
+                                Actions
                             </th>
                         </tr>
                     </thead>
@@ -273,7 +273,7 @@ function destroy() {
                                     size="sm"
                                     @click="removeMember(m)"
                                 >
-                                    Rimuovi
+                                    Remove
                                 </Button>
                             </td>
                         </tr>
@@ -282,7 +282,7 @@ function destroy() {
                                 :colspan="canManageMembers ? 4 : 3"
                                 class="px-4 py-6 text-center text-muted-foreground"
                             >
-                                Nessun membro.
+                                No members.
                             </td>
                         </tr>
                     </tbody>
@@ -295,7 +295,7 @@ function destroy() {
                 @submit.prevent="addMember"
             >
                 <label class="text-sm font-medium" for="member-user">
-                    Aggiungi membro
+                    Add member
                 </label>
                 <div class="flex gap-2">
                     <select
@@ -303,7 +303,7 @@ function destroy() {
                         v-model="addForm.user_id"
                         class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
-                        <option value="" disabled>Seleziona un utente</option>
+                        <option value="" disabled>Select a user</option>
                         <option
                             v-for="c in candidates"
                             :key="c.id"
@@ -315,7 +315,7 @@ function destroy() {
                     <select
                         v-model="addForm.role"
                         class="rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        aria-label="Ruolo"
+                        aria-label="Role"
                     >
                         <option value="operator">
                             {{ roleLabels.operator }}
@@ -326,7 +326,7 @@ function destroy() {
                         :disabled="addForm.processing || addForm.user_id === ''"
                         data-test="add-member"
                     >
-                        Aggiungi
+                        Add
                     </Button>
                 </div>
                 <InputError :message="addForm.errors.user_id" />

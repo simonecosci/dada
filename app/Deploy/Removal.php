@@ -2,12 +2,12 @@
 
 namespace App\Deploy;
 
-/** Installazione presente nell'ultimo deploy e non più tra quelle attuali dell'host. */
+/** Installation present in the last deploy and no longer among the host's current ones. */
 final readonly class Removal
 {
     /**
      * @param  list<string>  $services
-     * @param  list<string>  $files  file da cancellare, relativi alla cartella del deployment host
+     * @param  list<string>  $files  files to delete, relative to the deployment host directory
      */
     public function __construct(
         public string $slug,

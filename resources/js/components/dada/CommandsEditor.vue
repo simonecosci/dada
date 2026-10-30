@@ -65,7 +65,7 @@ function remove(index: number) {
             class="grid gap-3 rounded-lg border p-3 md:grid-cols-2"
         >
             <div class="grid gap-1">
-                <label class="text-xs font-medium">Nome</label>
+                <label class="text-xs font-medium">Name</label>
                 <Input
                     :model-value="row.name"
                     :disabled="readonly"
@@ -74,7 +74,7 @@ function remove(index: number) {
                 />
             </div>
             <div class="grid gap-1">
-                <label class="text-xs font-medium">Destinazione</label>
+                <label class="text-xs font-medium">Target</label>
                 <select
                     :value="row.target"
                     :disabled="readonly"
@@ -97,7 +97,7 @@ function remove(index: number) {
                 </select>
             </div>
             <div class="grid gap-1 md:col-span-2">
-                <label class="text-xs font-medium">Descrizione</label>
+                <label class="text-xs font-medium">Description</label>
                 <Input
                     :model-value="row.description ?? ''"
                     :disabled="readonly"
@@ -108,7 +108,7 @@ function remove(index: number) {
                 />
             </div>
             <div class="grid gap-1 md:col-span-2">
-                <label class="text-xs font-medium">Comando</label>
+                <label class="text-xs font-medium">Command</label>
                 <Input
                     :model-value="row.command"
                     :disabled="readonly"
@@ -129,7 +129,7 @@ function remove(index: number) {
                         })
                     "
                 />
-                Pericoloso (richiede conferma)
+                Dangerous (requires confirmation)
             </label>
             <div v-if="!readonly" class="md:col-span-2">
                 <Button
@@ -138,7 +138,7 @@ function remove(index: number) {
                     size="sm"
                     @click="remove(i)"
                 >
-                    Rimuovi
+                    Remove
                 </Button>
             </div>
         </div>
@@ -151,7 +151,7 @@ function remove(index: number) {
                 data-test="add-command"
                 @click="add"
             >
-                Aggiungi comando
+                Add command
             </Button>
         </div>
     </div>

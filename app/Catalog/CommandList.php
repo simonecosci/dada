@@ -17,13 +17,13 @@ class CommandList
             $p = "commands.{$i}";
 
             if (! is_array($c)) {
-                $errors[] = "{$p}: deve essere una mappa";
+                $errors[] = "{$p}: must be a map";
 
                 continue;
             }
 
             if (! isset($c['name']) || ! is_string($c['name']) || trim($c['name']) === '') {
-                $errors[] = "{$p}.name: obbligatorio (testo)";
+                $errors[] = "{$p}.name: required (text)";
             } elseif (isset($seen[$c['name']])) {
                 $errors[] = "{$p}.name: \"{$c['name']}\" duplicato";
             } else {
@@ -31,20 +31,20 @@ class CommandList
             }
 
             if (isset($c['description']) && ! is_string($c['description'])) {
-                $errors[] = "{$p}.description: deve essere testo";
+                $errors[] = "{$p}.description: must be text";
             }
 
             if (! isset($c['target']) || ! is_string($c['target'])
                 || ! preg_match('/\A(host|service:[a-zA-Z0-9][a-zA-Z0-9_.-]*)\z/', $c['target'])) {
-                $errors[] = "{$p}.target: deve essere \"host\" o \"service:<nome>\"";
+                $errors[] = "{$p}.target: must be \"host\" or \"service:<name>\"";
             }
 
             if (! isset($c['command']) || ! is_string($c['command']) || trim($c['command']) === '') {
-                $errors[] = "{$p}.command: obbligatorio (testo)";
+                $errors[] = "{$p}.command: required (text)";
             }
 
             if (! array_key_exists('dangerous', $c) || ! is_bool($c['dangerous'])) {
-                $errors[] = "{$p}.dangerous: deve essere booleano";
+                $errors[] = "{$p}.dangerous: must be a boolean";
             }
         }
 
@@ -67,7 +67,7 @@ class CommandList
             if (is_string($target) && str_starts_with($target, 'service:')) {
                 $service = substr($target, 8);
                 if (! array_key_exists($service, $services)) {
-                    $errors[] = "commands.{$i}.target: il servizio \"{$service}\" non esiste in compose";
+                    $errors[] = "commands.{$i}.target: service \"{$service}\" does not exist in compose";
                 }
             }
         }

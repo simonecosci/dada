@@ -18,12 +18,12 @@ it('continues other hosts when one fails and marks run failed', function () {
     $fakes = new FakeRemoteShellFactory;
     app()->instance(RemoteShellFactory::class, $fakes);
     [$d, $dhA, $dhB] = deploymentWithTwoHosts();
-    $fakes->shellFor($dhA->host)->failConnect(new HostKeyChanged('Chiave host cambiata per A'));
+    $fakes->shellFor($dhA->host)->failConnect(new HostKeyChanged('Host key changed for A'));
     $fakes->shellFor($dhB->host)->expect('/df -Pm/', 0, "50000\n");
     $run = DeployRun::factory()->for($d)->create(['type' => 'deploy', 'options' => ['pull' => false, 'restart' => true, 'confirm_removals' => false]]);
     DeployJob::dispatchSync($run->id);
     expect($run->fresh()->status)->toBe(RunStatus::Failed)
-        ->and($run->hosts()->where('deployment_host_id', $dhA->id)->first()->error)->toContain('Chiave host')
+        ->and($run->hosts()->where('deployment_host_id', $dhA->id)->first()->error)->toContain('Host key')
         ->and($run->hosts()->where('deployment_host_id', $dhB->id)->first()->status)->toBe(RunStatus::Succeeded);
 });
 
@@ -73,7 +73,7 @@ it('fails the run when the deployment is locked', function () {
 
     $run->refresh();
     expect($run->status)->toBe(RunStatus::Failed)
-        ->and($run->error)->toBe('deployment occupato')
+        ->and($run->error)->toBe('deployment busy')
         ->and($run->hosts()->count())->toBe(0)
         ->and($fakes->shellFor($dhA->host)->commands())->toBe([]);
 });
@@ -121,7 +121,7 @@ it('failed() of a run does not release the lock held by another run', function (
 });
 
 it('failed() of a run that is no longer running leaves the lock alone', function () {
-    $run = DeployRun::factory()->create(['status' => 'failed', 'error' => 'deployment occupato']);
+    $run = DeployRun::factory()->create(['status' => 'failed', 'error' => 'deployment busy']);
     $other = Cache::lock("deployment-run:{$run->deployment_id}", 3600);
     $other->get();
     $run->update(['options' => ['lock_owner' => $other->owner()]]);
@@ -129,7 +129,7 @@ it('failed() of a run that is no longer running leaves the lock alone', function
     (new DeployJob($run->id))->failed(new RuntimeException('x'));
 
     expect(Cache::lock("deployment-run:{$run->deployment_id}", 10)->get())->toBeFalse()
-        ->and($run->fresh()->error)->toBe('deployment occupato');
+        ->and($run->fresh()->error)->toBe('deployment busy');
 });
 
 it('stores the lock owner on the run and runs on the deploy queue', function () {
@@ -173,13 +173,13 @@ it('reports unexpected errors with the masked message only', function () {
     Exceptions::fake();
     [$d] = deploymentWithTwoHosts();
     app()->instance(DeployHostPipeline::class, Mockery::mock(DeployHostPipeline::class, function ($mock) {
-        $mock->shouldReceive('run')->andThrow(new LogicException('bug con pw-123'));
+        $mock->shouldReceive('run')->andThrow(new LogicException('bug with pw-123'));
     }));
     $run = DeployRun::factory()->for($d)->create(['options' => []]);
 
     DeployJob::dispatchSync($run->id);
 
-    Exceptions::assertReported(fn (RuntimeException $e) => str_contains($e->getMessage(), 'LogicException: bug con ******'));
+    Exceptions::assertReported(fn (RuntimeException $e) => str_contains($e->getMessage(), 'LogicException: bug with ******'));
     Exceptions::assertNotReported(LogicException::class);
     expect($run->hosts()->pluck('error')->implode("\n"))->not->toContain('pw-123');
 });

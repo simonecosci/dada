@@ -33,7 +33,7 @@ it('runs compose actions: inits only for all, stop then rm, restart recreates in
     $r = runBashScript($files, 'wp.sh', ['start', 'wp']);
     expect($r['log'])->toBe("docker [compose] [up] [-d] [wp]\n");
 
-    // Ruling F1: restart non rimuove i container (i volumi anonimi restano).
+    // Ruling F1: restart does not remove the containers (anonymous volumes stay).
     $r = runBashScript($files, 'wp.sh', ['restart']);
     expect($r['log'])->toBe(
         "docker [compose] [--profile] [init] [run] [--rm] [migrate]\n".
@@ -54,7 +54,7 @@ it('runs compose actions: inits only for all, stop then rm, restart recreates in
 
     $r = runBashScript($files, 'wp.sh', ['start', 'x$(touch pwned)`touch pwned2`']);
     expect($r['exit'])->toBe(2)->and($r['log'])->toBe('')
-        ->and($r['output'])->toContain('non valido')
+        ->and($r['output'])->toContain('Invalid service')
         ->and($r['files'])->not->toHaveKey('pwned')->not->toHaveKey('pwned2');
 
     $r = runBashScript($files, 'wp.sh', ['start', 'migrate']);
@@ -73,8 +73,8 @@ it('stops a compose start when an init fails', function () {
 });
 
 it('orders compose restart.sh, reverses on stop and restarts each installation in order', function () {
-    $dh = DeploymentHost::factory()->create(['orchestrator' => 'compose', 'stack_name' => 'cliente-x']);
-    // creata prima ma con order 2: l'ordine deve seguire `order`, non l'id
+    $dh = DeploymentHost::factory()->create(['orchestrator' => 'compose', 'stack_name' => 'client-x']);
+    // created first but with order 2: the order must follow `order`, not the id
     $b = Installation::factory()->for($dh)->create(['slug' => 'b', 'order' => 2, 'compose' => ['services' => ['svc-b' => ['image' => 'x']]]]);
     $a = Installation::factory()->for($dh)->create(['slug' => 'a', 'order' => 1, 'compose' => ['services' => ['svc-a' => ['image' => 'x']]]]);
     $built = ComposeBuilder::build($dh, $dh->installations, EffectiveVariables::for($dh));
@@ -110,14 +110,14 @@ it('renders swarm restart with init docker run and stack deploy', function () {
     $s = ScriptRenderer::restart($dh, collect([$inst]), $built);
     expect($s)->toContain('while IFS= read -r line || [ -n "$line" ]; do [ -z "$line" ] && continue; export "$line"; done < .env')
         ->not->toContain('. ./.env')
-        ->toContain("docker run --rm --network 'cliente-x_default'")
-        ->toContain("docker stack deploy --detach=false -c docker-compose.yml --with-registry-auth --prune 'cliente-x'")
-        ->toContain("docker service update --force 'cliente-x_wp'")
-        ->toContain("docker service update --force 'cliente-x_cron'")
+        ->toContain("docker run --rm --network 'client-x_default'")
+        ->toContain("docker stack deploy --detach=false -c docker-compose.yml --with-registry-auth --prune 'client-x'")
+        ->toContain("docker service update --force 'client-x_wp'")
+        ->toContain("docker service update --force 'client-x_cron'")
         ->toContain('"wordpress:${WP_TAG-}"')
         ->not->toContain("\r");
 
-    // Ruling P12: deploy dello stack, poi init, poi riavvio dei servizi
+    // Ruling P12: stack deploy, then inits, then restart of the services
     $deploy = strpos($s, "\n    docker stack deploy");
     $inits = strpos($s, "\n    run_inits");
     $refresh = strpos($s, "\n    refresh_services");
@@ -156,22 +156,22 @@ it('runs swarm restart.sh without executing .env content', function () {
     expect($r['exit'])->toBe(0, $r['output'])
         ->and($r['files'])->not->toHaveKey('pwned')->not->toHaveKey('pwned2')
         ->and($r['log'])->toBe(
-            "docker [stack] [deploy] [--detach=false] [-c] [docker-compose.yml] [--with-registry-auth] [--prune] [cliente-x]\n".
-            "docker [run] [--rm] [--network] [cliente-x_default] [wordpress:6.5] [wp] [core] [update-db]\n".
-            "docker [service] [update] [--force] [cliente-x_wp]\n".
-            "docker [service] [update] [--force] [cliente-x_cron]\n"
+            "docker [stack] [deploy] [--detach=false] [-c] [docker-compose.yml] [--with-registry-auth] [--prune] [client-x]\n".
+            "docker [run] [--rm] [--network] [client-x_default] [wordpress:6.5] [wp] [core] [update-db]\n".
+            "docker [service] [update] [--force] [client-x_wp]\n".
+            "docker [service] [update] [--force] [client-x_cron]\n"
         );
 
-    // un init che fallisce interrompe: nessun riavvio dei servizi
+    // a failing init aborts: no service restart
     $r = runBashScript($files, 'restart.sh', ['start'], ['DOCKER_FAIL_ON' => 'update-db']);
     expect($r['exit'])->not->toBe(0)->and($r['log'])->not->toContain('[service] [update]');
 
-    // senza WP_TAG: ${WP_TAG} vale vuoto (set -u non interrompe)
+    // without WP_TAG: ${WP_TAG} is empty (set -u does not abort)
     $r = runBashScript(['restart.sh' => $files['restart.sh']], 'restart.sh', ['start']);
     expect($r['exit'])->toBe(0, $r['output'])->and($r['log'])->toContain('[wordpress:] [wp]');
 
-    expect(runBashScript($files, 'restart.sh', ['stop'])['log'])->toBe("docker [stack] [rm] [cliente-x]\n")
-        ->and(runBashScript($files, 'restart.sh', ['status'])['log'])->toBe("docker [stack] [services] [cliente-x]\n")
+    expect(runBashScript($files, 'restart.sh', ['stop'])['log'])->toBe("docker [stack] [rm] [client-x]\n")
+        ->and(runBashScript($files, 'restart.sh', ['status'])['log'])->toBe("docker [stack] [services] [client-x]\n")
         ->and(runBashScript($files, 'restart.sh', ['x'])['exit'])->toBe(2);
 });
 
@@ -192,27 +192,27 @@ it('builds swarm init options from networks, env, volumes and command', function
         'networks' => ['back' => null, 'shared' => ['name' => 'shared-net']],
         'volumes' => ['data' => null],
     ]);
-    // la variabile container genera .env.wp
+    // the container variable generates .env.wp
     VariableSync::sync($inst, [['key' => 'K', 'scope' => 'container']], allowHostGlobal: false);
     $built = ComposeBuilder::build($dh->fresh(), $dh->fresh()->installations, EffectiveVariables::for($dh->fresh()));
 
     $s = ScriptRenderer::restart($dh, collect([$inst]), $built);
 
     expect($s)->toContain(
-        "docker run --rm --network 'cliente-x_back' --network 'shared-net' --env-file '.env.wp'"
+        "docker run --rm --network 'client-x_back' --network 'shared-net' --env-file '.env.wp'"
         ." -e 'A='\"x \${WP_TAG-} \\`id\\`\" -e 'B' -e 'N='\"5\""
-        ." -v 'cliente-x_data:/var/www:ro' -v \"./conf:/etc/conf\" -v \"/tmp\""
+        ." -v 'client-x_data:/var/www:ro' -v \"./conf:/etc/conf\" -v \"/tmp\""
         .' "wordpress:6" "sh" "-c" "echo \\"hi\\" && ls" "a b"'
-    )->and($built->warnings)->toContain('init migrate: chiave user ignorata in swarm')
-        ->and($built->warnings)->toContain('init migrate: chiave working_dir ignorata in swarm')
+    )->and($built->warnings)->toContain('init migrate: key user ignored in swarm')
+        ->and($built->warnings)->toContain('init migrate: key working_dir ignored in swarm')
         ->and($built->compose['networks']['shared'])->toBe(['name' => 'shared-net', 'attachable' => true]);
     assertBashSyntax($s);
 
     $r = runBashScript(['restart.sh' => $s, '.env' => "WP_TAG=7\n"], 'restart.sh', ['start']);
     expect($r['exit'])->toBe(0, $r['output'])->and(explode("\n", $r['log'])[1])->toBe(
-        'docker [run] [--rm] [--network] [cliente-x_back] [--network] [shared-net] [--env-file] [.env.wp]'
+        'docker [run] [--rm] [--network] [client-x_back] [--network] [shared-net] [--env-file] [.env.wp]'
         .' [-e] [A=x 7 `id`] [-e] [B] [-e] [N=5]'
-        .' [-v] [cliente-x_data:/var/www:ro] [-v] [./conf:/etc/conf] [-v] [/tmp]'
+        .' [-v] [client-x_data:/var/www:ro] [-v] [./conf:/etc/conf] [-v] [/tmp]'
         .' [wordpress:6] [sh] [-c] [echo "hi" && ls] [a b]'
     );
 });
@@ -224,7 +224,7 @@ it('rejects an unparseable swarm init command', function () {
     ]);
 
     expect(fn () => ScriptRenderer::restart($dh, collect([$inst]), $built))
-        ->toThrow(GenerationFailed::class, 'init migrate: command non interpretabile');
+        ->toThrow(GenerationFailed::class, 'init migrate: command cannot be parsed');
 });
 
 it('scales swarm services using deploy.replicas', function () {
@@ -232,21 +232,21 @@ it('scales swarm services using deploy.replicas', function () {
     $s = ScriptRenderer::installation($dh, $inst, $built);
 
     expect($s)->toStartWith("#!/usr/bin/env bash\n")
-        ->toContain("docker service scale 'cliente-x_wp'=3")
-        ->toContain("docker service scale 'cliente-x_cron'=1")
-        ->toContain("docker service scale 'cliente-x_wp'=0")
-        ->toContain("docker service update --force 'cliente-x_wp'")
-        ->toContain("docker service ps 'cliente-x_wp'")
+        ->toContain("docker service scale 'client-x_wp'=3")
+        ->toContain("docker service scale 'client-x_cron'=1")
+        ->toContain("docker service scale 'client-x_wp'=0")
+        ->toContain("docker service update --force 'client-x_wp'")
+        ->toContain("docker service ps 'client-x_wp'")
         ->not->toContain('migrate')
         ->not->toContain("\r");
     assertBashSyntax($s);
 
     $files = ['wp.sh' => $s];
     expect(runBashScript($files, 'wp.sh', ['start'])['log'])->toBe(
-        "docker [service] [scale] [cliente-x_wp=3]\ndocker [service] [scale] [cliente-x_cron=1]\n"
-    )->and(runBashScript($files, 'wp.sh', ['stop', 'cron'])['log'])->toBe("docker [service] [scale] [cliente-x_cron=0]\n")
-        ->and(runBashScript($files, 'wp.sh', ['restart', 'wp'])['log'])->toBe("docker [service] [update] [--force] [cliente-x_wp]\n")
-        ->and(runBashScript($files, 'wp.sh', ['status', 'wp'])['log'])->toBe("docker [service] [ps] [cliente-x_wp]\n");
+        "docker [service] [scale] [client-x_wp=3]\ndocker [service] [scale] [client-x_cron=1]\n"
+    )->and(runBashScript($files, 'wp.sh', ['stop', 'cron'])['log'])->toBe("docker [service] [scale] [client-x_cron=0]\n")
+        ->and(runBashScript($files, 'wp.sh', ['restart', 'wp'])['log'])->toBe("docker [service] [update] [--force] [client-x_wp]\n")
+        ->and(runBashScript($files, 'wp.sh', ['status', 'wp'])['log'])->toBe("docker [service] [ps] [client-x_wp]\n");
 
     $r = runBashScript($files, 'wp.sh', ['start', '$(touch pwned)']);
     expect($r['exit'])->toBe(2)->and($r['log'])->toBe('')->and($r['files'])->not->toHaveKey('pwned');
@@ -279,7 +279,7 @@ it('interpolates only ${VAR} tokens and escapes everything else', function () {
 
 it('rejects every other $ expression in interpolated()', function (string $value) {
     expect(fn () => ScriptRenderer::interpolated($value, 'init migrate: environment A'))
-        ->toThrow(GenerationFailed::class, 'init migrate: environment A: espressione con $ non supportata');
+        ->toThrow(GenerationFailed::class, 'init migrate: environment A: unsupported expression with $');
 })->with([
     'command substitution' => '$(id)',
     'unbraced' => '$HOME',
@@ -311,7 +311,7 @@ it('rejects the reviewer two-field environment attack at generation', function (
     ]);
 
     expect(fn () => ScriptRenderer::restart($dh, collect([$inst]), $built))
-        ->toThrow(GenerationFailed::class, 'init migrate: environment A: espressione con $ non supportata');
+        ->toThrow(GenerationFailed::class, 'init migrate: environment A: unsupported expression with $');
 });
 
 it('keeps hostile environment keys and values literal in bash', function () {
@@ -331,7 +331,7 @@ it('keeps hostile environment keys and values literal in bash', function () {
     expect($r['exit'])->toBe(0, $r['output'])
         ->and($r['files'])->not->toHaveKey('pwned')->not->toHaveKey('pwned2')
         ->and(explode("\n", $r['log'])[1])->toBe(
-            'docker [run] [--rm] [--network] [cliente-x_default] [-e] [A=x] [-e] [}=; touch pwned; #] [-e] [\'="`touch pwned2`"] [-e] [Z=it\'s d] [x]'
+            'docker [run] [--rm] [--network] [client-x_default] [-e] [A=x] [-e] [}=; touch pwned; #] [-e] [\'="`touch pwned2`"] [-e] [Z=it\'s d] [x]'
         );
 });
 
@@ -371,20 +371,20 @@ it('does not scale swarm services in global or job mode', function () {
 
     $r = runBashScript($files, 'wp.sh', ['start']);
     expect($r['exit'])->toBe(0, $r['output'])
-        ->and($r['log'])->toBe("docker [service] [scale] [cliente-x_wp=2]\n")
-        ->and($r['output'])->toContain('servizio agent in modalità global: start/stop non supportati, usa restart')
-        ->and($r['output'])->toContain('servizio job in modalità replicated-job: start/stop non supportati, usa restart');
+        ->and($r['log'])->toBe("docker [service] [scale] [client-x_wp=2]\n")
+        ->and($r['output'])->toContain('service agent in mode global: start/stop not supported, use restart')
+        ->and($r['output'])->toContain('service job in mode replicated-job: start/stop not supported, use restart');
 
     $r = runBashScript($files, 'wp.sh', ['stop', 'agent']);
     expect($r['exit'])->toBe(2)->and($r['log'])->toBe('')
-        ->and($r['output'])->toContain('servizio agent in modalità global: start/stop non supportati, usa restart');
+        ->and($r['output'])->toContain('service agent in mode global: start/stop not supported, use restart');
 
-    expect(runBashScript($files, 'wp.sh', ['restart', 'agent'])['log'])->toBe("docker [service] [update] [--force] [cliente-x_agent]\n")
-        ->and(runBashScript($files, 'wp.sh', ['status', 'job'])['log'])->toBe("docker [service] [ps] [cliente-x_job]\n")
+    expect(runBashScript($files, 'wp.sh', ['restart', 'agent'])['log'])->toBe("docker [service] [update] [--force] [client-x_agent]\n")
+        ->and(runBashScript($files, 'wp.sh', ['status', 'job'])['log'])->toBe("docker [service] [ps] [client-x_job]\n")
         ->and(runBashScript($files, 'wp.sh', ['restart'])['log'])->toBe(
-            "docker [service] [update] [--force] [cliente-x_wp]\n".
-            "docker [service] [update] [--force] [cliente-x_agent]\n".
-            "docker [service] [update] [--force] [cliente-x_job]\n"
+            "docker [service] [update] [--force] [client-x_wp]\n".
+            "docker [service] [update] [--force] [client-x_agent]\n".
+            "docker [service] [update] [--force] [client-x_job]\n"
         );
 });
 

@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 class VariableSync
 {
     /**
-     * @param  Model  $owner  Un modello che usa il trait HasVariables
+     * @param  Model  $owner  A model that uses the HasVariables trait
      * @param  array<int, array<string, mixed>>  $rows
      */
     public static function sync(Model $owner, array $rows, bool $allowHostGlobal = true): void
@@ -30,7 +30,7 @@ class VariableSync
             }
             $owner->variables()->reorder()->whereNotIn('id', $keep)->delete();
 
-            // Libera le chiavi che cambiano, così scambi e catene di rinomine non violano l'unicità.
+            // Frees the keys that change, so swaps and rename chains do not violate uniqueness.
             foreach ($rows as $row) {
                 $current = isset($row['id']) ? $existing->get($row['id']) : null;
                 if ($current !== null && $current->key !== $row['key']) {
@@ -78,18 +78,18 @@ class VariableSync
         foreach ($rows as $i => $row) {
             $key = $row['key'] ?? null;
             if (! is_string($key) || preg_match('/\A[A-Za-z_][A-Za-z0-9_]*\z/', $key) !== 1) {
-                $errors["variables.$i.key"] = 'La chiave non è valida: usa lettere, cifre e underscore, senza iniziare con una cifra.';
+                $errors["variables.$i.key"] = 'The key is not valid: use letters, digits and underscores, without starting with a digit.';
             } elseif (isset($seen[strtolower($key)])) {
-                $errors["variables.$i.key"] = "La chiave {$key} è duplicata.";
+                $errors["variables.$i.key"] = "The key {$key} is duplicated.";
             } else {
                 $seen[strtolower($key)] = true;
             }
 
             $scope = $row['scope'] ?? null;
             if (! is_string($scope) || ! in_array($scope, $scopes, true)) {
-                $errors["variables.$i.scope"] = 'Lo scope non è valido.';
+                $errors["variables.$i.scope"] = 'The scope is not valid.';
             } elseif ($scope === VariableScope::HostGlobal->value && ! $allowHostGlobal) {
-                $errors["variables.$i.scope"] = 'Lo scope host-global non è ammesso qui.';
+                $errors["variables.$i.scope"] = 'The host-global scope is not allowed here.';
             }
         }
 

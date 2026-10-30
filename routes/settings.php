@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\ApiTokenController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use Illuminate\Auth\Middleware\RequirePassword;
@@ -13,7 +14,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    // Niente auto-cancellazione dell'account (Ruling F2): gli utenti li cancellano gli amministratori.
+    // No self-deletion of the account (Ruling F2): users are deleted by administrators.
     Route::get('settings/security', [SecurityController::class, 'edit'])
         ->middleware(RequirePassword::class)
         ->name('security.edit');
@@ -23,6 +24,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('user-password.update');
 
     Route::inertia('settings/appearance', 'settings/Appearance')->name('appearance.edit');
+
+    // Creating a token that can deploy is as sensitive as the password: confirm it first, like Security.
+    Route::get('settings/api-tokens', [ApiTokenController::class, 'edit'])
+        ->middleware(RequirePassword::class)
+        ->name('api-tokens.edit');
+    Route::post('settings/api-tokens', [ApiTokenController::class, 'store'])
+        ->middleware(RequirePassword::class)
+        ->name('api-tokens.store');
+    Route::delete('settings/api-tokens/{token}', [ApiTokenController::class, 'destroy'])
+        ->whereNumber('token')
+        ->name('api-tokens.destroy');
 });
 
 Route::get('.well-known/passkey-endpoints', function () {

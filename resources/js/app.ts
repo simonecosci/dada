@@ -23,7 +23,7 @@ void createInertiaApp({
         }
     },
     withApp: (app, { page }) => {
-        // Prima del mount: i componenti chiamano useEcho nel setup.
+        // Before mount: components call useEcho in setup.
         setupEcho(page.props.reverb);
 
         app.directive('focus', {

@@ -32,7 +32,7 @@ it('returns the 409 message', function () {
 
     $this->actingAs(deployOperator($dh->deployment))->postJson("/deployments/{$dh->deployment_id}/deploy")
         ->assertStatus(409)
-        ->assertExactJson(['message' => 'Esecuzione già in corso']);
+        ->assertExactJson(['message' => 'A run is already in progress']);
     Queue::assertNothingPushed();
 });
 
@@ -100,7 +100,7 @@ it('asks to confirm removals before deploying', function () {
         ->assertExactJson(['removals' => [['deployment_host_id' => $dhB->id, 'slug' => 'old', 'services' => ['old-web']]]]);
     expect(DeployRun::count())->toBe(0);
 
-    // Il solo host A non ha rimozioni.
+    // Host A alone has no removals.
     $this->actingAs($op)->postJson("/deployments/{$d->id}/deploy", ['deployment_host_id' => $dhA->id])->assertRedirect();
     DeployRun::query()->delete();
 

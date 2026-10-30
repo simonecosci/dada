@@ -50,7 +50,7 @@ it('requires a registry url for registry credentials', function () {
 it('rejects a passphrase', function () {
     $this->actingAs(adminUser())->post('/admin/credentials', [
         'name' => 'k', 'type' => 'ssh-key', 'secret' => 'KEY', 'passphrase' => 'abc',
-    ])->assertSessionHasErrors(['passphrase' => 'chiavi con passphrase non supportate in questa versione']);
+    ])->assertSessionHasErrors(['passphrase' => 'keys with a passphrase are not supported in this version']);
 
     expect(Credential::count())->toBe(0);
 });

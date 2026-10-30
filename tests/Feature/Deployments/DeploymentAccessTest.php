@@ -50,8 +50,8 @@ it('hides deployments from non members', function () {
 it('only admins create deployments and the creator becomes operator', function () {
     $admin = User::factory()->create(['is_admin' => true]);
     $this->actingAs(User::factory()->create())->post('/deployments', ['name' => 'X', 'slug' => 'x'])->assertForbidden();
-    $this->actingAs($admin)->post('/deployments', ['name' => 'Cliente X', 'slug' => 'cliente-x'])->assertRedirect();
-    expect($admin->roleIn(Deployment::whereSlug('cliente-x')->first()))->toBe(DeploymentRole::Operator);
+    $this->actingAs($admin)->post('/deployments', ['name' => 'Client X', 'slug' => 'client-x'])->assertRedirect();
+    expect($admin->roleIn(Deployment::whereSlug('client-x')->first()))->toBe(DeploymentRole::Operator);
 });
 
 it('validates the deployment slug', function () {
@@ -66,8 +66,8 @@ it('lets operators update but not delete, and admins delete', function () {
     $op = User::factory()->create();
     $d->members()->attach($op, ['role' => 'operator']);
 
-    $this->actingAs($op)->put(route('deployments.update', $d), ['name' => 'Nuovo', 'slug' => $d->slug])->assertRedirect();
-    expect($d->fresh()->name)->toBe('Nuovo');
+    $this->actingAs($op)->put(route('deployments.update', $d), ['name' => 'New', 'slug' => $d->slug])->assertRedirect();
+    expect($d->fresh()->name)->toBe('New');
     $this->actingAs($op)->delete(route('deployments.destroy', $d))->assertForbidden();
 
     $admin = User::factory()->create(['is_admin' => true]);

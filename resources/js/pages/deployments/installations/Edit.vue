@@ -51,7 +51,7 @@ const form = useForm({
     variables: props.variables as VariableRow[],
 });
 
-// Nomi dei servizi dal YAML corrente (chiavi di secondo livello sotto "services:").
+// Service names from the current YAML (second-level keys under "services:").
 const services = computed(() => {
     const names: string[] = [];
     let inServices = false;
@@ -89,7 +89,7 @@ function save() {
         variables: variablesPayload(data.variables),
     })).put(InstallationController.update(props.installation.id).url, {
         preserveScroll: true,
-        // Riallinea le righe alle props aggiornate (i segreti tornano "non toccati").
+        // Realign the rows with the updated props (secrets go back to "untouched").
         onSuccess: () => {
             form.variables = props.variables.map((v) => ({ ...v }));
             form.defaults({
@@ -105,7 +105,7 @@ function save() {
 }
 
 function destroy() {
-    if (confirm(`Rimuovere l'installazione ${props.installation.slug}?`)) {
+    if (confirm(`Remove installation ${props.installation.slug}?`)) {
         router.delete(
             InstallationController.destroy(props.installation.id).url,
         );
@@ -114,7 +114,7 @@ function destroy() {
 </script>
 
 <template>
-    <Head :title="`Installazione ${installation.slug}`" />
+    <Head :title="`Installation ${installation.slug}`" />
 
     <div class="flex max-w-4xl flex-col gap-6 p-4">
         <Heading
@@ -123,10 +123,10 @@ function destroy() {
         />
 
         <section v-if="canOperate" class="flex flex-col gap-3">
-            <h2 class="text-sm font-medium">Servizi</h2>
+            <h2 class="text-sm font-medium">Services</h2>
             <div class="flex items-center gap-3">
                 <span class="w-40 text-sm text-muted-foreground">
-                    Tutta l'installazione
+                    Whole installation
                 </span>
                 <RestartControls
                     :deployment-host-id="deploymentHost.id"
@@ -159,7 +159,7 @@ function destroy() {
                 <InputError :message="form.errors.slug" />
             </div>
             <div class="grid gap-2">
-                <Label for="order">Ordine</Label>
+                <Label for="order">Order</Label>
                 <Input
                     id="order"
                     v-model.number="form.order"
@@ -182,7 +182,7 @@ function destroy() {
         </section>
 
         <section class="grid gap-2">
-            <h2 class="text-lg font-medium">Comandi</h2>
+            <h2 class="text-lg font-medium">Commands</h2>
             <CommandsEditor
                 v-model="form.commands"
                 :services="services"
@@ -196,7 +196,7 @@ function destroy() {
         </section>
 
         <section class="grid gap-2">
-            <h2 class="text-lg font-medium">Variabili</h2>
+            <h2 class="text-lg font-medium">Variables</h2>
             <VariablesEditor
                 v-model="form.variables"
                 mode="installation"
@@ -213,10 +213,10 @@ function destroy() {
                 data-test="save-installation"
                 @click="save"
             >
-                Salva
+                Save
             </Button>
             <Button v-if="canOperate" variant="destructive" @click="destroy"
-                >Rimuovi</Button
+                >Remove</Button
             >
             <Button variant="outline" as-child>
                 <Link
@@ -227,7 +227,7 @@ function destroy() {
                         ])
                     "
                 >
-                    Torna all'host
+                    Back to host
                 </Link>
             </Button>
         </div>

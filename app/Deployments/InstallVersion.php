@@ -14,21 +14,21 @@ class InstallVersion
     public function handle(DeploymentHost $dh, ProjectVersion $v, ?string $slug = null): InstallResult
     {
         if (! $v->isPublished()) {
-            throw new DomainException('Si possono installare solo versioni pubblicate.');
+            throw new DomainException('Only published versions can be installed.');
         }
 
         $slug ??= $v->project->slug;
 
         if ($slug === 'restart') {
-            throw ValidationException::withMessages(['slug' => 'lo slug "restart" è riservato']);
+            throw ValidationException::withMessages(['slug' => 'the slug "restart" is reserved']);
         }
 
         return DB::transaction(function () use ($dh, $v, $slug): InstallResult {
-            // Serializza le installazioni concorrenti sullo stesso host (slug e ordine).
+            // Serializes concurrent installations on the same host (slug and order).
             DeploymentHost::whereKey($dh->id)->lockForUpdate()->first();
 
             if ($dh->installations()->reorder()->where('slug', $slug)->exists()) {
-                throw ValidationException::withMessages(['slug' => "Esiste già un'installazione con slug {$slug} su questo host."]);
+                throw ValidationException::withMessages(['slug' => "An installation with slug {$slug} already exists on this host."]);
             }
 
             $installation = $dh->installations()->create([

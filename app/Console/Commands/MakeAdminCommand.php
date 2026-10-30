@@ -9,8 +9,8 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
-#[Signature('dada:admin {email : Email dell\'utente} {--name= : Nome (solo se l\'utente viene creato)}')]
-#[Description('Crea un utente admin o promuove un utente esistente ad admin')]
+#[Signature('dada:admin {email : User email} {--name= : Name (only if the user is created)}')]
+#[Description('Create an admin user or promote an existing user to admin')]
 class MakeAdminCommand extends Command
 {
     public function handle(): int
@@ -18,7 +18,7 @@ class MakeAdminCommand extends Command
         $email = Str::lower((string) $this->argument('email'));
 
         if (Validator::make(['email' => $email], ['email' => ['email']])->fails()) {
-            $this->error("Email non valida: {$email}");
+            $this->error("Invalid email: {$email}");
 
             return self::FAILURE;
         }
@@ -27,7 +27,7 @@ class MakeAdminCommand extends Command
 
         if ($user) {
             $user->forceFill(['is_admin' => true])->save();
-            $this->info("{$email} promosso ad admin.");
+            $this->info("{$email} promoted to admin.");
 
             return self::SUCCESS;
         }
@@ -42,7 +42,7 @@ class MakeAdminCommand extends Command
             'email_verified_at' => now(),
         ]);
 
-        $this->info("Admin {$email} creato.");
+        $this->info("Admin {$email} created.");
         $this->line("Password: {$password}");
 
         return self::SUCCESS;

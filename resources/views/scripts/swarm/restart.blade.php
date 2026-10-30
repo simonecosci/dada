@@ -1,9 +1,9 @@
-{{-- La riga #!/usr/bin/env bash la aggiunge ScriptRenderer::render(): PHP scarta un #! iniziale. --}}
+{{-- The #!/usr/bin/env bash line is added by ScriptRenderer::render(): PHP discards a leading #!. --}}
 set -euo pipefail
 cd "$(dirname "$0")"
 
 usage() {
-  printf 'Uso: %s start|stop|restart|status\n' "$0" >&2
+  printf 'Usage: %s start|stop|restart|status\n' "$0" >&2
   exit 2
 }
 
@@ -14,7 +14,7 @@ case "$ACTION" in
   *) usage ;;
 esac
 
-# .env contiene righe KEY=value: si esportano senza mai eseguirle come codice.
+# .env contains KEY=value lines: they are exported without ever running them as code.
 if [ -f .env ]; then
   while IFS= read -r line || [ -n "$line" ]; do [ -z "$line" ] && continue; export "$line"; done < .env
 fi
@@ -26,8 +26,8 @@ run_inits() {
   :
 }
 
-# Ruling P12: prima lo stack (crea le reti, avvia i servizi), poi gli init,
-# poi il riavvio dei servizi delle installazioni che hanno init.
+# Ruling P12: first the stack (creates the networks, starts the services), then the inits,
+# then the restart of the services of the installations that have inits.
 refresh_services() {
 @foreach ($updates as $update)
   docker service update --force {!! $update !!}
@@ -37,7 +37,7 @@ refresh_services() {
 
 case "$ACTION" in
   start|restart)
-    # --detach=false (Docker >= 26 sui manager swarm): attende la convergenza dei servizi prima degli init.
+    # --detach=false (Docker >= 26 on swarm managers): waits for the services to converge before the inits.
     docker stack deploy --detach=false -c docker-compose.yml --with-registry-auth --prune {!! $stack !!}
     run_inits
     refresh_services

@@ -84,13 +84,13 @@ it('deletes variables when the owner is deleted', function () {
     expect(Variable::count())->toBe(0);
 });
 
-it('reports duplicate key errors as valid UTF-8 Italian', function () {
+it('reports duplicate key errors as valid UTF-8', function () {
     $v = ProjectVersion::factory()->create();
     try {
         VariableSync::sync($v, [['key' => 'A', 'scope' => 'compose'], ['key' => 'A', 'scope' => 'compose']]);
         $this->fail('expected validation failure');
     } catch (ValidationException $e) {
         $msg = $e->errors()['variables.1.key'][0];
-        expect(mb_check_encoding($msg, 'UTF-8'))->toBeTrue()->and($msg)->toContain('è duplicata');
+        expect(mb_check_encoding($msg, 'UTF-8'))->toBeTrue()->and($msg)->toContain('is duplicated');
     }
 });

@@ -23,7 +23,7 @@ class DeployJob implements ShouldQueue
     public function __construct(public int $runId)
     {
         $this->timeout = (int) config('dada.deploy.lock_ttl') - 60;
-        // Connessione con retry_after > timeout: un deploy in corso non viene riconsegnato.
+        // Connection with retry_after > timeout: a running deploy is not redelivered.
         $this->onConnection('redis-deploy')->onQueue('deploy');
     }
 

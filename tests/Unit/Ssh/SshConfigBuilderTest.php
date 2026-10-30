@@ -60,7 +60,7 @@ it('restricts key hops to publickey so the target password never reaches a jump 
 
 it('rejects values that could inject ssh_config directives', function (array $attributes) {
     $t = Host::factory()->create();
-    $t->forceFill($attributes); // bypassa la validazione del controller
+    $t->forceFill($attributes); // bypasses the controller validation
 
     (new SshConfigBuilder)->build([$t], [], '/k/known_hosts', '/k');
 })->with([
@@ -69,13 +69,13 @@ it('rejects values that could inject ssh_config directives', function (array $at
     'space in hostname' => [['hostname' => 'a b']],
     'percent token' => [['username' => 'u%d']],
     'double quote' => [['hostname' => 'a"b']],
-])->throws(RemoteCommandFailed::class, 'Valore non valido');
+])->throws(RemoteCommandFailed::class, 'Invalid value');
 
 it('rejects unsafe paths', function () {
     $t = Host::factory()->create();
 
     (new SshConfigBuilder)->build([$t], [], '/k/known hosts', '/k');
-})->throws(RemoteCommandFailed::class, 'Valore non valido');
+})->throws(RemoteCommandFailed::class, 'Invalid value');
 
 it('silences informational ssh messages on every hop so they never reach parsed output', function () {
     $jump = Host::factory()->create();

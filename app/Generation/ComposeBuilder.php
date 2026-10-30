@@ -11,7 +11,7 @@ class ComposeBuilder
 {
     private const SECTIONS = ['volumes', 'networks', 'configs'];
 
-    /** Chiavi di .env vietate in swarm: restart.sh le esporterebbe nella shell di root (Ruling P13). */
+    /** .env keys forbidden in swarm: restart.sh would export them into the root shell (Ruling P13). */
     private const SWARM_RESERVED_KEYS = '/\A(UID|GID|EUID|PPID|BASHOPTS|SHELLOPTS|RANDOM|SRANDOM|SECONDS|LINENO|PATH|IFS|ENV|HOME|PWD|OLDPWD|SHLVL|PS4|BASH_.*|LD_.*|DOCKER_.*)\z/s';
 
     /** @param Collection<int, Installation> $installations */
@@ -20,7 +20,7 @@ class ComposeBuilder
         $swarm = $dh->orchestrator === Orchestrator::Swarm;
         $errors = [];
         $warnings = [];
-        /** @var array<string, string> $initNetworks rete => primo init swarm che la usa */
+        /** @var array<string, string> $initNetworks network => first swarm init that uses it */
         $initNetworks = [];
 
         $template = is_array($dh->compose_template) ? $dh->compose_template : [];
@@ -32,7 +32,7 @@ class ComposeBuilder
         $origins = ['volumes' => [], 'networks' => [], 'configs' => []];
         foreach (['volumes', 'networks'] as $section) {
             foreach (array_keys($sections[$section]) as $name) {
-                $origins[$section][$name] = "il template dell'host";
+                $origins[$section][$name] = 'the host template';
             }
         }
 
@@ -40,7 +40,7 @@ class ComposeBuilder
         $serviceOwner = [];
         $initServices = [];
         $servicesBySlug = [];
-        /** @var list<array{string, string, string, string}> $usages [slug, servizio, 'network'|'volume', nome] */
+        /** @var list<array{string, string, string, string}> $usages [slug, service, 'network'|'volume', name] */
         $usages = [];
 
         foreach ($installations as $installation) {
@@ -51,7 +51,7 @@ class ComposeBuilder
 
             $rawServices = $compose['services'] ?? [];
             if (! is_array($rawServices)) {
-                $errors[] = "{$slug}: la sezione services non è una mappa valida";
+                $errors[] = "{$slug}: the services section is not a valid map";
                 $rawServices = [];
             }
 
@@ -59,14 +59,14 @@ class ComposeBuilder
                 $name = (string) $name;
 
                 if (isset($serviceOwner[$name])) {
-                    $errors[] = "servizio \"{$name}\" definito sia da {$serviceOwner[$name]} sia da {$slug}";
+                    $errors[] = "service \"{$name}\" defined by both {$serviceOwner[$name]} and {$slug}";
 
                     continue;
                 }
                 $serviceOwner[$name] = $slug;
 
                 if (! is_array($def)) {
-                    $errors[] = "{$slug}: il servizio \"{$name}\" non è una mappa valida";
+                    $errors[] = "{$slug}: service \"{$name}\" is not a valid map";
 
                     continue;
                 }
@@ -76,7 +76,7 @@ class ComposeBuilder
                     $xDada = $def['x-dada'];
                     if (is_array($xDada) && array_key_exists('init', $xDada)) {
                         if (! is_bool($xDada['init'])) {
-                            $errors[] = "{$slug}: x-dada.init del servizio \"{$name}\" deve essere true o false";
+                            $errors[] = "{$slug}: x-dada.init of service \"{$name}\" must be true or false";
                         }
                         $isInit = $xDada['init'] === true;
                     }
@@ -97,7 +97,7 @@ class ComposeBuilder
                 if ($isInit && $swarm) {
                     foreach (array_keys($def) as $key) {
                         if (! in_array($key, ScriptRenderer::SWARM_INIT_KEYS, true)) {
-                            $warnings[] = "init {$name}: chiave {$key} ignorata in swarm";
+                            $warnings[] = "init {$name}: key {$key} ignored in swarm";
                         }
                     }
                     $initServices[$slug][$name] = $def;
@@ -123,7 +123,7 @@ class ComposeBuilder
             foreach (self::SECTIONS as $section) {
                 $declared = $compose[$section] ?? [];
                 if (! is_array($declared)) {
-                    $errors[] = "{$slug}: la sezione {$section} non è una mappa valida";
+                    $errors[] = "{$slug}: the {$section} section is not a valid map";
 
                     continue;
                 }
@@ -134,7 +134,7 @@ class ComposeBuilder
                     }
                     if (array_key_exists($name, $sections[$section])) {
                         if (self::canonical($sections[$section][$name]) !== self::canonical($def)) {
-                            $errors[] = "{$section} \"{$name}\" definito in modo diverso da {$origins[$section][$name]} e da {$slug}";
+                            $errors[] = "{$section} \"{$name}\" defined differently by {$origins[$section][$name]} and by {$slug}";
                         }
 
                         continue;
@@ -147,17 +147,17 @@ class ComposeBuilder
 
         foreach ($usages as [$slug, $service, $kind, $name]) {
             if ($kind === 'network' && $name !== 'default' && ! array_key_exists($name, $sections['networks'])) {
-                $errors[] = "{$slug}: il servizio \"{$service}\" usa la network \"{$name}\" che non è dichiarata";
+                $errors[] = "{$slug}: service \"{$service}\" uses network \"{$name}\" which is not declared";
             }
             if ($kind === 'volume' && ! array_key_exists($name, $sections['volumes'])) {
-                $errors[] = "{$slug}: il servizio \"{$service}\" usa il volume \"{$name}\" che non è dichiarato";
+                $errors[] = "{$slug}: service \"{$service}\" uses volume \"{$name}\" which is not declared";
             }
         }
 
         if ($swarm) {
             foreach (array_keys($vars->dotEnv()) as $key) {
                 if (preg_match(self::SWARM_RESERVED_KEYS, (string) $key)) {
-                    $errors[] = "{$key}: nome riservato della shell, non utilizzabile come variabile in swarm";
+                    $errors[] = "{$key}: reserved shell name, cannot be used as a variable in swarm";
                 }
             }
         }
@@ -166,22 +166,22 @@ class ComposeBuilder
             $sections['networks']['default'] = ['driver' => 'overlay', 'attachable' => true];
         }
 
-        // Ruling P12: gli init girano con `docker run` sulle reti dello stack, che devono essere attachable.
+        // Ruling P12: inits run with `docker run` on the stack networks, which must be attachable.
         foreach ($initNetworks as $network => $init) {
             if (! array_key_exists($network, $sections['networks'])) {
-                continue; // già segnalata come non dichiarata
+                continue; // already reported as undeclared
             }
             $def = $sections['networks'][$network];
             if ($def !== null && ! is_array($def)) {
-                $errors[] = "network \"{$network}\" non è una mappa valida";
+                $errors[] = "network \"{$network}\" is not a valid map";
 
                 continue;
             }
             $def ??= [];
             if (! empty($def['external'])) {
-                $errors[] = "network \"{$network}\" usata dall'init {$init}: non può essere external in swarm";
+                $errors[] = "network \"{$network}\" used by init {$init}: cannot be external in swarm";
             } elseif (isset($def['driver']) && $def['driver'] !== 'overlay') {
-                $errors[] = "network \"{$network}\" usata dall'init {$init}: in swarm serve il driver overlay";
+                $errors[] = "network \"{$network}\" used by init {$init}: swarm requires the overlay driver";
             } else {
                 $def['attachable'] = true;
                 $sections['networks'][$network] = $def;
@@ -247,7 +247,7 @@ class ComposeBuilder
         foreach ((array) ($def['volumes'] ?? []) as $volume) {
             if (is_string($volume)) {
                 if (! str_contains($volume, ':')) {
-                    continue; // volume anonimo
+                    continue; // anonymous volume
                 }
                 $source = explode(':', $volume, 2)[0];
                 if ($source !== '' && ! str_contains($source, '$') && ! str_contains($source, '/') && ! in_array($source[0], ['.', '/', '~'], true)) {

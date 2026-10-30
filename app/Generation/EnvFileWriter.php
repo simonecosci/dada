@@ -22,7 +22,7 @@ class EnvFileWriter
     private static function raw(string $key, string $value, string $context): string
     {
         if (str_contains($value, "\n") || str_contains($value, "\r")) {
-            throw self::unsupported($key, $context, 'contiene un newline');
+            throw self::unsupported($key, $context, 'contains a newline');
         }
 
         return $value;
@@ -35,7 +35,7 @@ class EnvFileWriter
 
         if (str_contains($value, "\n") || str_contains($value, "\r")
             || (($hasSingle || $endsWithBackslash) && str_contains($value, '$'))) {
-            throw self::unsupported($key, $context, "newline, oppure ' e \$ insieme, oppure \\ finale e \$ insieme");
+            throw self::unsupported($key, $context, "newline, or ' and \$ together, or trailing \\ and \$ together");
         }
 
         if (! $hasSingle && ! $endsWithBackslash) {
@@ -47,6 +47,6 @@ class EnvFileWriter
 
     private static function unsupported(string $key, string $context, string $detail): GenerationFailed
     {
-        return new GenerationFailed(["{$context}: {$key} contiene caratteri non supportati ({$detail})"]);
+        return new GenerationFailed(["{$context}: {$key} contains unsupported characters ({$detail})"]);
     }
 }

@@ -26,7 +26,7 @@ it('renders one line per variable in order', function () {
 it('blocks unsupported env values naming key and context', function (string $value) {
     try {
         EnvFileWriter::render(['DB_PASS' => $value], 'wp');
-        $this->fail('GenerationFailed non lanciata');
+        $this->fail('GenerationFailed not thrown');
     } catch (GenerationFailed $e) {
         expect($e->errors[0])->toContain('wp')->toContain('DB_PASS');
     }
@@ -46,7 +46,7 @@ it('renders raw env files verbatim', function (?string $value, string $line) {
 it('rejects newlines in raw env values', function (string $value) {
     try {
         EnvFileWriter::render(['DB_PASS' => $value], 'wp', EnvFormat::Raw);
-        $this->fail('GenerationFailed non lanciata');
+        $this->fail('GenerationFailed not thrown');
     } catch (GenerationFailed $e) {
         expect($e->errors[0])->toContain('wp')->toContain('DB_PASS');
     }

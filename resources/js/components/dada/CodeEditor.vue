@@ -96,7 +96,7 @@ onBeforeUnmount(() => {
             data-test="code-editor"
         >
             <p v-if="loading" class="p-3 text-sm text-muted-foreground">
-                Caricamento editor...
+                Loading editor...
             </p>
         </div>
         <InputError

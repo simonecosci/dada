@@ -5,7 +5,7 @@ namespace App\Variables;
 class VariableRules
 {
     /**
-     * Regole di validazione della richiesta per il payload `variables` (chiave e scope sono poi verificati da VariableSync).
+     * Request validation rules for the `variables` payload (key and scope are then checked by VariableSync).
      *
      * @return array<string, list<string>>
      */

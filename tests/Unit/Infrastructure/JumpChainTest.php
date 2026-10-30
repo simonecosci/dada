@@ -24,13 +24,13 @@ it('rejects a cycle', function () {
     $a = Host::factory()->create();
     $b = Host::factory()->create(['jump_host_id' => $a->id]);
 
-    expect(JumpChain::validate($a, $b->id))->toContain('ciclo');
+    expect(JumpChain::validate($a, $b->id))->toContain('cycle');
 });
 
 it('rejects a host as its own jump host', function () {
     $a = Host::factory()->create();
 
-    expect(JumpChain::validate($a, $a->id))->toContain('ciclo');
+    expect(JumpChain::validate($a, $a->id))->toContain('cycle');
 });
 
 it('accepts no jump host and a valid ssh-key jump host', function () {

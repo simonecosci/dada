@@ -21,8 +21,8 @@ use Illuminate\Support\Collection;
 use RuntimeException;
 
 /**
- * Deploy di un singolo deployment host. Lancia un'eccezione al primo passo fallito:
- * il messaggio (mascherato dal chiamante) finisce in deploy_run_hosts.error.
+ * Deploy of a single deployment host. Throws an exception at the first failed step:
+ * the message (masked by the caller) ends up in deploy_run_hosts.error.
  */
 class DeployHostPipeline
 {
@@ -36,32 +36,32 @@ class DeployHostPipeline
     {
         $dh->loadMissing('host');
 
-        $log->step($dh, 'Generazione dei file');
+        $log->step($dh, 'Generating files');
         $generated = $this->generator->generate($dh);
         $log->addSecrets($generated->secretValues);
         $this->ensureGenerated($generated);
         foreach ($generated->warnings as $warning) {
-            $log->info($dh, "Attenzione: {$warning}");
+            $log->info($dh, "Warning: {$warning}");
         }
         $installations = $this->installationsSnapshot($dh, $generated);
         $hostVariables = $dh->variables()->get()->map(fn (Variable $v) => $this->variableSnapshot($v))->values()->all();
 
-        $log->step($dh, 'Calcolo delle rimozioni');
+        $log->step($dh, 'Computing removals');
         $removals = RemovalPlanner::for($dh);
         if ($removals !== [] && ! ($options['confirm_removals'] ?? false)) {
-            throw new RuntimeException('rimozioni da confermare: '.implode(', ', array_map(
+            throw new RuntimeException('removals to confirm: '.implode(', ', array_map(
                 fn (Removal $r) => $r->slug.($r->services !== [] ? ' ('.implode(', ', $r->services).')' : ''),
                 $removals,
             )));
         }
         foreach ($removals as $removal) {
-            $log->info($dh, "Verrà rimossa l'installazione {$removal->slug}");
+            $log->info($dh, "Installation {$removal->slug} will be removed");
         }
 
         $registries = $dh->registries()->where('type', CredentialType::Registry->value)->get();
         $log->addSecrets($registries->pluck('secret')->filter(fn ($s) => is_string($s) && $s !== '')->values()->all());
 
-        $log->step($dh, "Connessione a {$dh->host->name}");
+        $log->step($dh, "Connecting to {$dh->host->name}");
         $shell = $this->shells->for($dh->host);
 
         try {
@@ -73,7 +73,7 @@ class DeployHostPipeline
             $this->login($shell, $dh, $log, $registries);
 
             if (($options['pull'] ?? false) && $dh->orchestrator === Orchestrator::Compose) {
-                $log->step($dh, 'Pull delle immagini');
+                $log->step($dh, 'Pulling images');
                 $this->exec($shell, $dh, $log, RemoteSteps::wrap($dh, 'docker compose pull --ignore-buildable'));
             }
 
@@ -85,7 +85,7 @@ class DeployHostPipeline
             $shell->close();
         }
 
-        $log->step($dh, 'Salvataggio dello snapshot');
+        $log->step($dh, 'Saving the snapshot');
         $snapshot = DeploymentSnapshot::create([
             'deployment_host_id' => $dh->id,
             'deploy_run_id' => $run->id,
@@ -104,31 +104,31 @@ class DeployHostPipeline
 
         $lines = [
             ...$generated->errors,
-            ...array_map(fn (string $m) => "variabile obbligatoria mancante: {$m}", $generated->missingRequired),
+            ...array_map(fn (string $m) => "missing required variable: {$m}", $generated->missingRequired),
         ];
 
-        throw new RuntimeException("generazione dei file fallita:\n- ".implode("\n- ", $lines));
+        throw new RuntimeException("file generation failed:\n- ".implode("\n- ", $lines));
     }
 
     private function checkDiskSpace(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log): void
     {
-        $log->step($dh, 'Controllo dello spazio disco');
+        $log->step($dh, 'Checking disk space');
         $result = $this->exec($shell, $dh, $log, self::diskFreeCommand($dh->path));
 
         $free = trim($result->stdout);
         if (preg_match('/\A\d+\z/', $free) !== 1) {
-            throw new RuntimeException("impossibile leggere lo spazio libero su {$dh->path}");
+            throw new RuntimeException("unable to read free space on {$dh->path}");
         }
 
         $min = (int) config('dada.deploy.min_free_mb');
         if ((int) $free < $min) {
-            throw new RuntimeException("spazio insufficiente: {$free} MB liberi, minimo {$min}");
+            throw new RuntimeException("insufficient space: {$free} MB free, minimum {$min}");
         }
     }
 
     /**
-     * MB liberi sul filesystem di $path: se $path (o i suoi genitori) non esiste ancora
-     * si risale al primo antenato esistente.
+     * Free MB on the filesystem of $path: if $path (or its parents) does not exist yet
+     * the first existing ancestor is used.
      */
     public static function diskFreeCommand(string $path): string
     {
@@ -138,7 +138,7 @@ class DeployHostPipeline
 
     private function prepareFolder(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log): void
     {
-        $log->step($dh, 'Preparazione della cartella');
+        $log->step($dh, 'Preparing the directory');
         $base = rtrim($dh->path, '/');
         $path = ScriptRenderer::quote($dh->path);
         $backups = ScriptRenderer::quote($base.'/.dada/backups');
@@ -150,7 +150,7 @@ class DeployHostPipeline
             return;
         }
 
-        // chown ricorsivo solo su .dada: la cartella può contenere dati bind-montati (es. DB) da non toccare.
+        // recursive chown only on .dada: the directory may contain bind-mounted data (e.g. DB) that must not be touched.
         $user = ScriptRenderer::quote($dh->host->username);
         $dada = ScriptRenderer::quote($base.'/.dada');
         $this->exec($shell, $dh, $log, "{$sudo} mkdir -p {$backups} && {$sudo} chown {$user} {$path} && {$sudo} chown -R {$user} {$dada}");
@@ -158,7 +158,7 @@ class DeployHostPipeline
 
     private function backup(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log, GeneratedFiles $generated): void
     {
-        $log->step($dh, 'Backup dei file attuali');
+        $log->step($dh, 'Backing up current files');
         $previous = array_keys($dh->latestSnapshot()->first()?->files ?? []);
         $names = array_values(array_unique([...array_keys($generated->files), ...array_map('strval', $previous)]));
         $list = implode(' ', array_map(ScriptRenderer::quote(...), $names));
@@ -174,7 +174,7 @@ class DeployHostPipeline
 
     private function upload(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log, GeneratedFiles $generated): void
     {
-        $log->step($dh, 'Caricamento dei file');
+        $log->step($dh, 'Uploading files');
         $base = rtrim($dh->path, '/');
 
         foreach ($generated->files as $name => $contents) {
@@ -195,13 +195,13 @@ class DeployHostPipeline
             return;
         }
 
-        $log->step($dh, 'Rimozione delle installazioni eliminate');
+        $log->step($dh, 'Removing deleted installations');
         $project = ScriptRenderer::quote('label=com.docker.compose.project='.$dh->stack_name);
 
         foreach ($removals as $removal) {
             $this->exec($shell, $dh, $log, RemoteSteps::wrap($dh, 'rm -f '.implode(' ', array_map(ScriptRenderer::quote(...), $removal->files))));
 
-            // In swarm i servizi rimossi li elimina `docker stack deploy --prune` di restart.sh.
+            // In swarm, removed services are deleted by `docker stack deploy --prune` in restart.sh.
             if ($dh->orchestrator !== Orchestrator::Compose) {
                 continue;
             }
@@ -218,12 +218,12 @@ class DeployHostPipeline
     {
         foreach ($registries as $registry) {
             $url = trim((string) $registry->registry_url);
-            $log->step($dh, 'Login al registry '.($url !== '' ? $url : $registry->name));
+            $log->step($dh, 'Registry login '.($url !== '' ? $url : $registry->name));
 
             $command = 'docker login'.($url !== '' ? ' '.ScriptRenderer::quote($url) : '')
                 .' -u '.ScriptRenderer::quote((string) $registry->username).' --password-stdin';
 
-            // Il secret passa solo via stdin: non compare mai nella riga di comando.
+            // The secret is passed only via stdin: it never appears on the command line.
             $this->exec($shell, $dh, $log, RemoteSteps::wrap($dh, $command), (string) $registry->secret);
         }
     }

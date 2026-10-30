@@ -5,16 +5,17 @@ cd /var/www/html
 
 role="${DADA_ROLE:-all}"
 case "$role" in
-    web|worker|scheduler|reverb|all) ;;
-    *) echo "DADA_ROLE non valido: '$role' (web|worker|scheduler|reverb|all)" >&2; exit 64 ;;
+    web|worker|scheduler|reverb|all|init) ;;
+    *) echo "DADA_ROLE non valido: '$role' (web|worker|scheduler|reverb|all|init)" >&2; exit 64 ;;
 esac
 
-# Le migrazioni girano di default solo per i ruoli che servono la web app.
+# Install/update (migrazioni + seeder del primo admin): di default solo `init`,
+# che poi esce, e `all`, che e' l'unico container dello stack.
 case "$role" in
-    web|all) migrate_default=true ;;
-    *) migrate_default=false ;;
+    init|all) install_default=true ;;
+    *) install_default=false ;;
 esac
-migrate="${DADA_MIGRATE:-$migrate_default}"
+install="${DADA_INSTALL:-$install_default}"
 
 mkdir -p storage/app/private/ssh storage/framework/cache/data \
     storage/framework/sessions storage/framework/views storage/logs
@@ -24,8 +25,13 @@ if [ "$role" = "web" ] || [ "$role" = "all" ]; then
     envsubst '${REVERB_UPSTREAM}' < /etc/dada/nginx.conf.template > /tmp/nginx.conf
 fi
 
-if [ "$migrate" = "true" ]; then
+if [ "$install" = "true" ]; then
     php artisan migrate --force
+    php artisan db:seed --force
+fi
+
+if [ "$role" = "init" ]; then
+    exit 0
 fi
 
 php artisan optimize

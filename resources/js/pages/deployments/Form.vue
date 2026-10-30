@@ -37,10 +37,10 @@ const formProps = computed(() =>
 </script>
 
 <template>
-    <Head :title="isEdit ? 'Modifica deployment' : 'Nuovo deployment'" />
+    <Head :title="isEdit ? 'Edit deployment' : 'New deployment'" />
 
     <div class="flex max-w-xl flex-col gap-6 p-4">
-        <Heading :title="isEdit ? 'Modifica deployment' : 'Nuovo deployment'" />
+        <Heading :title="isEdit ? 'Edit deployment' : 'New deployment'" />
 
         <Form
             v-bind="formProps"
@@ -48,7 +48,7 @@ const formProps = computed(() =>
             v-slot="{ errors, processing }"
         >
             <div class="grid gap-2">
-                <Label for="name">Nome</Label>
+                <Label for="name">Name</Label>
                 <Input
                     id="name"
                     name="name"
@@ -65,7 +65,7 @@ const formProps = computed(() =>
                     id="slug"
                     name="slug"
                     :default-value="deployment?.slug"
-                    placeholder="cliente-x"
+                    placeholder="client-x"
                     required
                     autocomplete="off"
                 />
@@ -73,19 +73,19 @@ const formProps = computed(() =>
             </div>
 
             <div class="grid gap-2">
-                <Label for="environment">Ambiente</Label>
+                <Label for="environment">Environment</Label>
                 <Input
                     id="environment"
                     name="environment"
                     :default-value="deployment?.environment ?? ''"
-                    placeholder="produzione"
+                    placeholder="production"
                     autocomplete="off"
                 />
                 <InputError :message="errors.environment" />
             </div>
 
             <div class="grid gap-2">
-                <Label for="description">Descrizione</Label>
+                <Label for="description">Description</Label>
                 <textarea
                     id="description"
                     name="description"
@@ -98,10 +98,10 @@ const formProps = computed(() =>
 
             <div class="flex items-center gap-4">
                 <Button :disabled="processing" data-test="save-deployment">
-                    Salva
+                    Save
                 </Button>
                 <Button variant="outline" as-child>
-                    <Link :href="DeploymentController.index()">Annulla</Link>
+                    <Link :href="DeploymentController.index()">Cancel</Link>
                 </Button>
             </div>
         </Form>

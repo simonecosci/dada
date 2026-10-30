@@ -16,10 +16,10 @@ class DeployRun extends Model
     /** @use HasFactory<DeployRunFactory> */
     use HasFactory;
 
-    /** `error` va sempre mascherato con DeployLogger::mask() prima del salvataggio. */
+    /** `error` must always be masked with DeployLogger::mask() before saving. */
     protected $guarded = [];
 
-    /** Ruling F2: il nome dell'utente resta nello storico anche dopo la sua cancellazione. */
+    /** Ruling F2: the user's name stays in the history even after the user is deleted. */
     protected static function booted(): void
     {
         static::creating(function (self $model): void {

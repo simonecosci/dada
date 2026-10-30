@@ -130,7 +130,7 @@ class DeploymentHostController extends Controller
             'stack_name' => $data['stack_name'],
         ];
 
-        // Il template cambia solo se la richiesta lo include: il form delle impostazioni non lo invia.
+        // The template changes only if the request includes it: the settings form does not send it.
         if (array_key_exists('compose_template', $data)) {
             $attributes['compose_template'] = $this->parseTemplate($data['compose_template']);
         }
@@ -158,7 +158,7 @@ class DeploymentHostController extends Controller
         $errors = [];
         foreach (array_values($data['variables']) as $i => $row) {
             if (($row['scope'] ?? null) !== VariableScope::HostGlobal->value) {
-                $errors["variables.$i.scope"] = "Sull'host sono ammesse solo variabili host-global.";
+                $errors["variables.$i.scope"] = 'Only host-global variables are allowed on the host.';
             }
         }
         if ($errors !== []) {
@@ -180,7 +180,7 @@ class DeploymentHostController extends Controller
                 'integer',
                 Rule::exists('credentials', 'id')->where('type', CredentialType::Registry->value),
             ],
-        ], ['credential_ids.*.exists' => 'Sono ammesse solo credenziali di tipo registry.']);
+        ], ['credential_ids.*.exists' => 'Only registry-type credentials are allowed.']);
 
         $deploymentHost->registries()->sync($data['credential_ids']);
 
@@ -212,7 +212,7 @@ class DeploymentHostController extends Controller
             'required', 'string', 'max:255', 'regex:/\A\/[A-Za-z0-9._\/-]*\z/',
             function (string $attribute, mixed $value, Closure $fail): void {
                 if (in_array('..', explode('/', (string) $value), true) || trim((string) $value, '/') === '') {
-                    $fail('Il percorso non può essere la radice né contenere segmenti "..".');
+                    $fail('The path cannot be the root nor contain ".." segments.');
                 }
             },
             Rule::unique('deployment_hosts', 'path')->where('host_id', $hostId)->ignore($ignore?->id),
@@ -228,10 +228,10 @@ class DeploymentHostController extends Controller
     private function messages(): array
     {
         return [
-            'path.regex' => 'Il percorso deve essere assoluto e contenere solo lettere, cifre, punto, trattino, underscore e barre.',
-            'path.unique' => 'Questo percorso è già usato su questo host.',
-            'stack_name.unique' => 'Questo nome di stack è già usato su questo host.',
-            'stack_name.regex' => 'Il nome dello stack può contenere solo minuscole, cifre e trattini.',
+            'path.regex' => 'The path must be absolute and contain only letters, digits, dots, hyphens, underscores and slashes.',
+            'path.unique' => 'This path is already used on this host.',
+            'stack_name.unique' => 'This stack name is already used on this host.',
+            'stack_name.regex' => 'The stack name may only contain lowercase letters, digits and hyphens.',
         ];
     }
 
@@ -249,7 +249,7 @@ class DeploymentHostController extends Controller
         try {
             $data = Yaml::parse($yaml);
         } catch (ParseException $e) {
-            throw ValidationException::withMessages(['compose_template' => 'YAML non valido: '.$e->getMessage()]);
+            throw ValidationException::withMessages(['compose_template' => 'Invalid YAML: '.$e->getMessage()]);
         }
 
         if ($data === null) {
@@ -257,18 +257,18 @@ class DeploymentHostController extends Controller
         }
 
         if (! is_array($data) || ($data !== [] && array_is_list($data))) {
-            throw ValidationException::withMessages(['compose_template' => '(radice): deve essere una mappa']);
+            throw ValidationException::withMessages(['compose_template' => '(root): must be a map']);
         }
 
         $errors = [];
         $template = [];
         foreach ($data as $key => $value) {
             if (! in_array($key, self::TEMPLATE_KEYS, true)) {
-                $errors[] = "{$key}: chiave non consentita (ammesse: ".implode(', ', self::TEMPLATE_KEYS).')';
+                $errors[] = "{$key}: key not allowed (allowed: ".implode(', ', self::TEMPLATE_KEYS).')';
             } elseif ($value === null) {
                 continue;
             } elseif (! is_array($value) || ($value !== [] && array_is_list($value))) {
-                $errors[] = "{$key}: deve essere una mappa";
+                $errors[] = "{$key}: must be a map";
             } else {
                 $template[$key] = $value;
             }

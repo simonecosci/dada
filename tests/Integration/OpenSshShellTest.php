@@ -6,7 +6,7 @@ use App\Ssh\RemoteShellFactory;
 
 beforeEach(function () {
     if (! env('DADA_SSH_TEST_HOST')) {
-        $this->markTestSkipped('DADA_SSH_TEST_HOST non impostato.');
+        $this->markTestSkipped('DADA_SSH_TEST_HOST not set.');
     }
 
     $this->host = Host::factory()
@@ -41,7 +41,7 @@ it('executes commands, uploads files and records the host key', function () {
 
 it('reaches a password target through a key-authenticated bastion', function () {
     if (! env('DADA_SSH_TEST_JUMP_HOST')) {
-        $this->markTestSkipped('DADA_SSH_TEST_JUMP_HOST non impostato.');
+        $this->markTestSkipped('DADA_SSH_TEST_JUMP_HOST not set.');
     }
 
     $bastion = Host::factory()

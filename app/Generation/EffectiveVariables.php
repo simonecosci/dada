@@ -87,7 +87,7 @@ class EffectiveVariables
         }
         $this->dotEnv = $hostGlobal;
 
-        /** @var array<string, string> $composeOwner chiave => slug della prima installazione che la definisce */
+        /** @var array<string, string> $composeOwner key => slug of the first installation that defines it */
         $composeOwner = [];
         $conflicts = [];
 
@@ -115,7 +115,7 @@ class EffectiveVariables
     private function addCompose(string $key, ?string $value, string $slug, array $hostGlobal, array &$composeOwner, array &$conflicts): void
     {
         if (array_key_exists($key, $hostGlobal)) {
-            $this->warnings[] = "{$key}: definita sia tra le variabili dell'host sia in {$slug}, vale quella dell'host";
+            $this->warnings[] = "{$key}: defined both among the host variables and in {$slug}, the host one wins";
 
             return;
         }
@@ -129,7 +129,7 @@ class EffectiveVariables
 
         if (($this->dotEnv[$key] ?? '') !== ($value ?? '') && ! isset($conflicts[$key.'|'.$slug])) {
             $conflicts[$key.'|'.$slug] = true;
-            $this->errors[] = "{$key}: valori diversi tra {$composeOwner[$key]} e {$slug}, spostala tra le variabili dell'host";
+            $this->errors[] = "{$key}: different values between {$composeOwner[$key]} and {$slug}, move it to the host variables";
         }
     }
 

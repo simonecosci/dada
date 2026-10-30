@@ -104,7 +104,7 @@ it('turns a decrypt failure into an error without leaking details', function () 
 
     expect($g->ok())->toBeFalse()
         ->and($g->files)->toBe([])
-        ->and($g->errors)->toBe(['impossibile decifrare una variabile segreta']);
+        ->and($g->errors)->toBe(['unable to decrypt a secret variable']);
 });
 
 it('turns unexpected exceptions into a generic error', function () {

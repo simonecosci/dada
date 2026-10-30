@@ -31,36 +31,36 @@ class RestartJob implements ShouldQueue
     public function __construct(public int $runId)
     {
         $this->timeout = (int) config('dada.deploy.lock_ttl') - 60;
-        // Stessa coda e stesso lock del deploy: mai due run attivi sullo stesso deployment.
+        // Same queue and lock as deploy: never two active runs on the same deployment.
         $this->onConnection('redis-deploy')->onQueue('deploy');
     }
 
     /**
-     * Comando remoto. Ruling P5: gli argomenti sono validati con regex restrittive, quindi
-     * vengono emessi senza apici.
+     * Remote command. Ruling P5: arguments are validated with restrictive regexes, so
+     * they are emitted without quotes.
      */
     public static function command(DeploymentHost $dh, string $action, ?string $slug, ?string $service): string
     {
         if (! in_array($action, self::ACTIONS, true)) {
-            throw new InvalidArgumentException('azione non valida');
+            throw new InvalidArgumentException('invalid action');
         }
 
         if ($slug === null || $slug === '') {
             if ($service !== null && $service !== '') {
-                throw new InvalidArgumentException('il servizio richiede un\'installazione');
+                throw new InvalidArgumentException('the service requires an installation');
             }
 
             return RemoteSteps::wrap($dh, "./restart.sh {$action}");
         }
 
         if (! preg_match(self::SLUG_REGEX, $slug)) {
-            throw new InvalidArgumentException('slug non valido');
+            throw new InvalidArgumentException('invalid slug');
         }
 
         $target = 'all';
         if ($service !== null && $service !== '') {
             if (! preg_match(self::SERVICE_REGEX, $service)) {
-                throw new InvalidArgumentException('nome servizio non valido');
+                throw new InvalidArgumentException('invalid service name');
             }
             $target = $service;
         }
@@ -82,15 +82,15 @@ class RestartJob implements ShouldQueue
             $service = $options['service'] ?? null;
             $command = self::command($dh, $action, $slug, $service);
 
-            $what = $slug ? ($service ? "{$slug}/{$service}" : $slug) : 'tutto l\'host';
-            $log->step($dh, "Azione {$action}: {$what}");
+            $what = $slug ? ($service ? "{$slug}/{$service}" : $slug) : 'the whole host';
+            $log->step($dh, "Action {$action}: {$what}");
 
             $shell = $shells->for($dh->host);
             try {
                 $result = $shell->exec($command, fn (string $chunk) => $log->output($dh, $chunk));
                 $log->flush();
                 if ($result->exitCode === 127 || str_contains($result->output, 'No such file or directory')) {
-                    throw new RuntimeException("script non presente sull'host: esegui prima un deploy");
+                    throw new RuntimeException('script not present on the host: run a deploy first');
                 }
                 if (! $result->successful()) {
                     throw RemoteCommandFailed::from($command, $result);

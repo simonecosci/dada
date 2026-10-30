@@ -14,7 +14,7 @@ type CatalogProject = {
 
 defineOptions({
     layout: {
-        breadcrumbs: [{ title: 'Catalogo', href: ProjectController.index() }],
+        breadcrumbs: [{ title: 'Catalog', href: ProjectController.index() }],
     },
 });
 
@@ -25,20 +25,20 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Catalogo" />
+    <Head title="Catalog" />
 
     <div class="flex flex-col gap-6 p-4">
         <div class="flex items-center justify-between">
             <Heading
-                title="Catalogo"
-                description="Progetti e versioni disponibili per il deploy"
+                title="Catalog"
+                description="Projects and versions available for deploy"
             />
             <Button v-if="canManage" as-child>
                 <Link
                     :href="ProjectController.create()"
                     data-test="create-project"
                 >
-                    Nuovo progetto
+                    New project
                 </Link>
             </Button>
         </div>
@@ -47,9 +47,9 @@ defineProps<{
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 text-left">
                     <tr>
-                        <th class="px-4 py-2 font-medium">Nome</th>
+                        <th class="px-4 py-2 font-medium">Name</th>
                         <th class="px-4 py-2 font-medium">Slug</th>
-                        <th class="px-4 py-2 font-medium">Versioni</th>
+                        <th class="px-4 py-2 font-medium">Versions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -70,7 +70,7 @@ defineProps<{
                             colspan="3"
                             class="px-4 py-6 text-center text-muted-foreground"
                         >
-                            Nessun progetto nel catalogo.
+                            No projects in the catalog.
                         </td>
                     </tr>
                 </tbody>

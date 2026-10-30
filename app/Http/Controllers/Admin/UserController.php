@@ -67,7 +67,7 @@ class UserController extends Controller
 
         if ($user->is($request->user()) && ! $isAdmin) {
             throw ValidationException::withMessages([
-                'is_admin' => 'Non puoi rimuovere il ruolo admin a te stesso.',
+                'is_admin' => 'You cannot remove the admin role from yourself.',
             ]);
         }
 
@@ -91,7 +91,7 @@ class UserController extends Controller
     {
         if ($user->is($request->user())) {
             throw ValidationException::withMessages([
-                'user' => 'Non puoi cancellare te stesso.',
+                'user' => 'You cannot delete yourself.',
             ]);
         }
 

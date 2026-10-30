@@ -41,7 +41,7 @@ const deleteError = computed(() => {
 });
 
 function destroy(host: AdminHost) {
-    if (confirm(`Cancellare l'host ${host.name}?`)) {
+    if (confirm(`Delete host ${host.name}?`)) {
         router.delete(HostController.destroy(host.id).url);
     }
 }
@@ -54,11 +54,11 @@ function destroy(host: AdminHost) {
         <div class="flex items-center justify-between">
             <Heading
                 title="Host"
-                description="Server raggiungibili via SSH, anche tramite jump host"
+                description="Servers reachable over SSH, optionally through a jump host"
             />
             <Button as-child>
                 <Link :href="HostController.create()" data-test="create-host">
-                    Nuovo host
+                    New host
                 </Link>
             </Button>
         </div>
@@ -69,12 +69,14 @@ function destroy(host: AdminHost) {
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 text-left">
                     <tr>
-                        <th class="px-4 py-2 font-medium">Nome</th>
-                        <th class="px-4 py-2 font-medium">Indirizzo</th>
-                        <th class="px-4 py-2 font-medium">Credenziale</th>
+                        <th class="px-4 py-2 font-medium">Name</th>
+                        <th class="px-4 py-2 font-medium">Address</th>
+                        <th class="px-4 py-2 font-medium">Credential</th>
                         <th class="px-4 py-2 font-medium">Jump host</th>
-                        <th class="px-4 py-2 font-medium">Stato</th>
-                        <th class="px-4 py-2 text-right font-medium">Azioni</th>
+                        <th class="px-4 py-2 font-medium">Status</th>
+                        <th class="px-4 py-2 text-right font-medium">
+                            Actions
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -96,23 +98,23 @@ function destroy(host: AdminHost) {
                         <td class="px-4 py-2">{{ host.jump_host?.name }}</td>
                         <td class="px-4 py-2">
                             <Badge v-if="host.reachable === true">
-                                Raggiungibile
+                                Reachable
                             </Badge>
                             <Badge
                                 v-else-if="host.reachable === false"
                                 variant="destructive"
                             >
-                                Non raggiungibile
+                                Unreachable
                             </Badge>
                             <Badge v-else variant="secondary">
-                                Non verificato
+                                Not verified
                             </Badge>
                         </td>
                         <td class="px-4 py-2 text-right">
                             <div class="flex justify-end gap-2">
                                 <Button variant="outline" size="sm" as-child>
                                     <Link :href="HostController.edit(host.id)">
-                                        Modifica
+                                        Edit
                                     </Link>
                                 </Button>
                                 <Button
@@ -120,7 +122,7 @@ function destroy(host: AdminHost) {
                                     size="sm"
                                     @click="destroy(host)"
                                 >
-                                    Cancella
+                                    Delete
                                 </Button>
                             </div>
                         </td>

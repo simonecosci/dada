@@ -16,23 +16,23 @@ const processing = ref(false);
 const error = ref<string | null>(null);
 
 const labels: Record<Action, string> = {
-    start: 'Avvia',
-    stop: 'Ferma',
-    restart: 'Riavvia',
+    start: 'Start',
+    stop: 'Stop',
+    restart: 'Restart',
 };
 
 function target(): string {
     if (props.service) {
-        return `il servizio ${props.service}`;
+        return `service ${props.service}`;
     }
 
     return props.installationSlug
-        ? `l'installazione ${props.installationSlug}`
-        : "tutto l'host";
+        ? `installation ${props.installationSlug}`
+        : 'the whole host';
 }
 
 function run(action: Action) {
-    if (action === 'stop' && !confirm(`Fermare ${target()}?`)) {
+    if (action === 'stop' && !confirm(`Stop ${target()}?`)) {
         return;
     }
 
@@ -50,8 +50,7 @@ function run(action: Action) {
                 error.value = null;
             },
             onError: (errors) => {
-                error.value =
-                    Object.values(errors)[0] ?? 'Richiesta non valida.';
+                error.value = Object.values(errors)[0] ?? 'Invalid request.';
             },
             onFinish: () => (processing.value = false),
         },

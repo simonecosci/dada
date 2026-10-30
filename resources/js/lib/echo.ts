@@ -8,8 +8,8 @@ export type ReverbClientConfig = {
 };
 
 /**
- * Configura Echo con i valori runtime condivisi dal server (prop `reverb`).
- * Ordine: prop del server, poi VITE_REVERB_* di build, poi l'origine della pagina.
+ * Configures Echo with the runtime values shared by the server (`reverb` prop).
+ * Order: server prop, then build-time VITE_REVERB_*, then the page origin.
  */
 export function setupEcho(reverb?: ReverbClientConfig | null): void {
     const env = import.meta.env;

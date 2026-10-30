@@ -10,15 +10,15 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Chiude come fallito un run rimasto attivo (worker morto, dispatch fallito, intervento admin).
- * Libera il lock del deployment solo se appartiene ancora a questo run (owner salvato in options).
+ * Closes as failed a run left active (dead worker, failed dispatch, admin intervention).
+ * Releases the deployment lock only if it still belongs to this run (owner saved in options).
  */
 class RunTerminator
 {
     /**
-     * $error non deve contenere segreti (viene salvato e trasmesso così com'è).
+     * $error must not contain secrets (it is saved and broadcast as is).
      *
-     * @return bool false se il run non era più attivo
+     * @return bool false if the run was no longer active
      */
     public static function fail(DeployRun $run, string $error): bool
     {
@@ -43,7 +43,7 @@ class RunTerminator
             return false;
         }
 
-        // Mai forceRelease: il lock potrebbe appartenere a un altro run dello stesso deployment.
+        // Never forceRelease: the lock might belong to another run of the same deployment.
         $owner = $run->options['lock_owner'] ?? null;
         if (is_string($owner) && $owner !== '') {
             Cache::restoreLock(DeployJob::lockKey($run->deployment_id), $owner)->release();

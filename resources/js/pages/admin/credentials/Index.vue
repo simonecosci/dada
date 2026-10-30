@@ -19,7 +19,7 @@ defineOptions({
     layout: {
         breadcrumbs: [
             {
-                title: 'Credenziali',
+                title: 'Credentials',
                 href: CredentialController.index(),
             },
         ],
@@ -38,27 +38,27 @@ const deleteError = computed(() => {
 });
 
 function destroy(credential: AdminCredential) {
-    if (confirm(`Cancellare la credenziale ${credential.name}?`)) {
+    if (confirm(`Delete credential ${credential.name}?`)) {
         router.delete(CredentialController.destroy(credential.id).url);
     }
 }
 </script>
 
 <template>
-    <Head title="Credenziali" />
+    <Head title="Credentials" />
 
     <div class="flex flex-col gap-6 p-4">
         <div class="flex items-center justify-between">
             <Heading
-                title="Credenziali"
-                description="Password, chiavi SSH e accessi ai registry"
+                title="Credentials"
+                description="Passwords, SSH keys and registry access"
             />
             <Button as-child>
                 <Link
                     :href="CredentialController.create()"
                     data-test="create-credential"
                 >
-                    Nuova credenziale
+                    New credential
                 </Link>
             </Button>
         </div>
@@ -69,11 +69,13 @@ function destroy(credential: AdminCredential) {
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 text-left">
                     <tr>
-                        <th class="px-4 py-2 font-medium">Nome</th>
-                        <th class="px-4 py-2 font-medium">Tipo</th>
-                        <th class="px-4 py-2 font-medium">Utente</th>
+                        <th class="px-4 py-2 font-medium">Name</th>
+                        <th class="px-4 py-2 font-medium">Type</th>
+                        <th class="px-4 py-2 font-medium">User</th>
                         <th class="px-4 py-2 font-medium">Registry</th>
-                        <th class="px-4 py-2 text-right font-medium">Azioni</th>
+                        <th class="px-4 py-2 text-right font-medium">
+                            Actions
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -100,7 +102,7 @@ function destroy(credential: AdminCredential) {
                                             )
                                         "
                                     >
-                                        Modifica
+                                        Edit
                                     </Link>
                                 </Button>
                                 <Button
@@ -108,7 +110,7 @@ function destroy(credential: AdminCredential) {
                                     size="sm"
                                     @click="destroy(credential)"
                                 >
-                                    Cancella
+                                    Delete
                                 </Button>
                             </div>
                         </td>

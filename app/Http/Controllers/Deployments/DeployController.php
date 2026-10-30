@@ -44,12 +44,12 @@ class DeployController extends Controller
             'confirm_removals' => $request->boolean('confirm_removals'),
         ];
 
-        // Lock sulla riga del deployment: due richieste concorrenti non possono creare due run attivi.
+        // Lock on the deployment row: two concurrent requests cannot create two active runs.
         $result = DB::transaction(function () use ($request, $deployment, $options) {
             Deployment::query()->whereKey($deployment->id)->lockForUpdate()->first();
 
             if ($deployment->runs()->active()->exists()) {
-                return response()->json(['message' => 'Esecuzione già in corso'], 409);
+                return response()->json(['message' => 'A run is already in progress'], 409);
             }
 
             $hosts = $deployment->hosts()->orderBy('id')
@@ -57,7 +57,7 @@ class DeployController extends Controller
                 ->get();
 
             if ($hosts->isEmpty()) {
-                throw ValidationException::withMessages(['deployment_host_id' => 'Il deployment non ha host da aggiornare.']);
+                throw ValidationException::withMessages(['deployment_host_id' => 'The deployment has no hosts to update.']);
             }
 
             if (! $options['confirm_removals']) {

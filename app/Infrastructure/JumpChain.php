@@ -22,7 +22,7 @@ class JumpChain
 
         while ($current !== null) {
             if (isset($seen[$current->id])) {
-                throw new InvalidArgumentException('Ciclo nella catena dei jump host.');
+                throw new InvalidArgumentException('Cycle in the jump host chain.');
             }
             $seen[$current->id] = true;
             array_unshift($chain, $current);
@@ -40,7 +40,7 @@ class JumpChain
     {
         if ($host->credential_id !== null
             && Credential::find($host->credential_id)?->type === CredentialType::Registry) {
-            return 'Una credenziale registry non è usabile per SSH.';
+            return 'A registry credential cannot be used for SSH.';
         }
 
         $seen = [];
@@ -48,21 +48,21 @@ class JumpChain
 
         while ($currentId !== null) {
             if (($host->exists && $currentId === $host->id) || isset($seen[$currentId])) {
-                return 'La catena di jump host contiene un ciclo.';
+                return 'The jump host chain contains a cycle.';
             }
             $seen[$currentId] = true;
 
             $hop = Host::with('credential')->find($currentId);
             if ($hop === null) {
-                return 'Jump host inesistente.';
+                return 'Jump host does not exist.';
             }
 
             $type = $hop->credential->type;
             if ($type === CredentialType::Registry) {
-                return 'Una credenziale registry non è usabile per SSH.';
+                return 'A registry credential cannot be used for SSH.';
             }
             if ($type !== CredentialType::SshKey) {
-                return "Il jump host \"{$hop->name}\" deve usare una credenziale ssh-key.";
+                return "The jump host \"{$hop->name}\" must use an ssh-key credential.";
             }
 
             $currentId = $hop->jump_host_id;

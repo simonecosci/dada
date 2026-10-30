@@ -77,13 +77,13 @@ class CredentialController extends Controller
 
         if ($credential->hosts()->exists()) {
             throw ValidationException::withMessages([
-                'credential' => 'La credenziale è usata da uno o più host.',
+                'credential' => 'The credential is used by one or more hosts.',
             ]);
         }
 
         if (DB::table('deployment_host_registry')->where('credential_id', $credential->id)->exists()) {
             throw ValidationException::withMessages([
-                'credential' => 'La credenziale è usata come registry da uno o più host di deployment.',
+                'credential' => 'The credential is used as a registry by one or more deployment hosts.',
             ]);
         }
 
@@ -107,12 +107,12 @@ class CredentialController extends Controller
             'secret' => [$secretChanged ? 'required' : 'nullable', 'string', 'max:20000'],
             'passphrase' => ['nullable', 'string', function (string $attribute, mixed $value, \Closure $fail): void {
                 if (filled($value)) {
-                    $fail('chiavi con passphrase non supportate in questa versione');
+                    $fail('keys with a passphrase are not supported in this version');
                 }
             }],
             'registry_url' => [$isRegistry ? 'required' : 'nullable', 'string', 'max:255'],
         ], [
-            'secret.required' => 'Il segreto è obbligatorio.',
+            'secret.required' => 'The secret is required.',
         ]);
 
         unset($data['passphrase']);

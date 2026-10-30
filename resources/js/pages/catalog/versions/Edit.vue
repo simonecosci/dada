@@ -34,7 +34,7 @@ const props = defineProps<{
 
 defineOptions({
     layout: {
-        breadcrumbs: [{ title: 'Catalogo', href: ProjectController.index() }],
+        breadcrumbs: [{ title: 'Catalog', href: ProjectController.index() }],
     },
 });
 
@@ -48,7 +48,7 @@ const form = useForm({
 
 const published = computed(() => props.version.status === 'published');
 
-// Nomi dei servizi dal YAML corrente (chiavi di secondo livello sotto "services:").
+// Service names from the current YAML (second-level keys under "services:").
 const services = computed(() => {
     const names: string[] = [];
     let inServices = false;
@@ -86,7 +86,7 @@ function save() {
         variables: variablesPayload(data.variables),
     })).put(ProjectVersionController.update(props.version.id).url, {
         preserveScroll: true,
-        // Riallinea le righe alle props aggiornate: le nuove variabili ricevono l'id dal server.
+        // Realign the rows with the updated props: new variables get their id from the server.
         onSuccess: () => {
             form.variables = props.variables.map((v) => ({ ...v }));
             form.defaults({
@@ -102,7 +102,9 @@ function save() {
 }
 
 function publish() {
-    if (confirm('Pubblicare la versione? Dopo non sarà più modificabile.')) {
+    if (
+        confirm('Publish this version? It can no longer be edited afterwards.')
+    ) {
         router.post(
             ProjectVersionController.publish(props.version.id).url,
             {},
@@ -125,7 +127,7 @@ function clone() {
 }
 
 function destroy() {
-    if (confirm('Cancellare questa bozza?')) {
+    if (confirm('Delete this draft?')) {
         router.delete(ProjectVersionController.destroy(props.version.id).url);
     }
 }
@@ -140,19 +142,19 @@ function destroy() {
                 :title="`${project.name} ${version.version}`"
                 :description="
                     published
-                        ? 'Versione pubblicata: sola lettura'
-                        : 'Bozza modificabile'
+                        ? 'Published version: read-only'
+                        : 'Editable draft'
                 "
             />
             <Badge :variant="published ? 'default' : 'secondary'">
-                {{ published ? 'Pubblicata' : 'Bozza' }}
+                {{ published ? 'Published' : 'Draft' }}
             </Badge>
         </div>
 
         <InputError :message="form.errors.version" />
 
         <div class="grid gap-2">
-            <Label for="version">Versione</Label>
+            <Label for="version">Version</Label>
             <Input
                 id="version"
                 v-model="form.version"
@@ -162,7 +164,7 @@ function destroy() {
         </div>
 
         <div class="grid gap-2">
-            <Label for="notes">Note</Label>
+            <Label for="notes">Notes</Label>
             <textarea
                 id="notes"
                 v-model="form.notes"
@@ -184,7 +186,7 @@ function destroy() {
         </section>
 
         <section class="grid gap-2">
-            <h2 class="text-lg font-medium">Comandi</h2>
+            <h2 class="text-lg font-medium">Commands</h2>
             <CommandsEditor
                 v-model="form.commands"
                 :services="services"
@@ -198,7 +200,7 @@ function destroy() {
         </section>
 
         <section class="grid gap-2">
-            <h2 class="text-lg font-medium">Variabili</h2>
+            <h2 class="text-lg font-medium">Variables</h2>
             <VariablesEditor
                 v-model="form.variables"
                 mode="catalog"
@@ -214,27 +216,25 @@ function destroy() {
                 data-test="save-version"
                 @click="save"
             >
-                Salva
+                Save
             </Button>
             <Button
                 variant="outline"
                 data-test="publish-version"
                 @click="publish"
             >
-                Pubblica
+                Publish
             </Button>
-            <Button variant="destructive" @click="destroy"
-                >Cancella bozza</Button
-            >
+            <Button variant="destructive" @click="destroy">Delete draft</Button>
         </div>
 
         <div v-if="canManage" class="grid max-w-md gap-2">
-            <Label for="clone-version">Clona come nuova bozza</Label>
+            <Label for="clone-version">Clone as new draft</Label>
             <div class="flex gap-2">
                 <Input
                     id="clone-version"
                     v-model="cloneVersion"
-                    placeholder="Nuova versione"
+                    placeholder="New version"
                     autocomplete="off"
                 />
                 <Button
@@ -242,7 +242,7 @@ function destroy() {
                     data-test="clone-version"
                     @click="clone"
                 >
-                    Clona
+                    Clone
                 </Button>
             </div>
             <InputError :message="cloneError" />

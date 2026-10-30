@@ -44,7 +44,7 @@ it('removes keys and directories when the constructor fails', function () {
     $jump = Host::factory()->create();
     $target = Host::factory()->create(['jump_host_id' => $jump->id]);
     $chain = JumpChain::for($target);
-    $target->forceFill(['hostname' => "x\nProxyCommand id"]); // il builder fallisce dopo aver scritto le chiavi
+    $target->forceFill(['hostname' => "x\nProxyCommand id"]); // the builder fails after writing the keys
 
     expect(fn () => new OpenSshShell($chain))->toThrow(RemoteCommandFailed::class);
 
@@ -63,7 +63,7 @@ it('maps exit 255 to HostKeyChanged only when a chain alias is named', function 
     $shell->close();
 
     expect($changed)->toBeInstanceOf(HostKeyChanged::class)
-        ->and($changed->getMessage())->toBe('Chiave host cambiata per web1')
+        ->and($changed->getMessage())->toBe('Host key changed for web1')
         ->and($unrelated)->toBeInstanceOf(RemoteCommandFailed::class);
 });
 

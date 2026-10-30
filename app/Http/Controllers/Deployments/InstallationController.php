@@ -59,7 +59,7 @@ class InstallationController extends Controller
         $data = $request->validate([
             'project_version_id' => ['required', 'integer', 'exists:project_versions,id'],
             'slug' => ['nullable', 'string', 'max:255', 'regex:'.self::SLUG],
-        ], ['slug.regex' => 'Lo slug può contenere solo minuscole, cifre e trattini.']);
+        ], ['slug.regex' => 'The slug may only contain lowercase letters, digits and hyphens.']);
 
         $version = ProjectVersion::findOrFail($data['project_version_id']);
 
@@ -72,10 +72,10 @@ class InstallationController extends Controller
         if ($result->warnings !== []) {
             Inertia::flash('toast', [
                 'type' => 'warning',
-                'message' => "Versione installata. Avvisi:\n".implode("\n", $result->warnings),
+                'message' => "Version installed. Warnings:\n".implode("\n", $result->warnings),
             ]);
         } else {
-            Inertia::flash('toast', ['type' => 'success', 'message' => 'Versione installata.']);
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Version installed.']);
         }
 
         return to_route('deployments.hosts.show', [$deploymentHost->deployment_id, $deploymentHost]);
@@ -124,9 +124,9 @@ class InstallationController extends Controller
             'commands.*' => ['array'],
             ...VariableRules::rules(),
         ], [
-            'slug.regex' => 'Lo slug può contenere solo minuscole, cifre e trattini.',
-            'slug.not_in' => 'lo slug "restart" è riservato',
-            'slug.unique' => 'Esiste già un\'installazione con questo slug su questo host.',
+            'slug.regex' => 'The slug may only contain lowercase letters, digits and hyphens.',
+            'slug.not_in' => 'the slug "restart" is reserved',
+            'slug.unique' => 'An installation with this slug already exists on this host.',
         ]);
 
         try {
@@ -183,7 +183,7 @@ class InstallationController extends Controller
         sort($sortedGiven);
 
         if ($sortedCurrent !== $sortedGiven) {
-            throw ValidationException::withMessages(['ids' => 'L\'elenco non corrisponde alle installazioni dell\'host.']);
+            throw ValidationException::withMessages(['ids' => 'The list does not match the host\'s installations.']);
         }
 
         DB::transaction(function () use ($deploymentHost, $given): void {
@@ -196,8 +196,8 @@ class InstallationController extends Controller
     }
 
     /**
-     * Di un'installazione il client può cambiare solo use_default e value delle variabili esistenti:
-     * la struttura (chiave, scope, segreto, default...) resta quella copiata dalla versione.
+     * For an installation the client can only change use_default and value of existing variables:
+     * the structure (key, scope, secret, default...) stays as copied from the version.
      *
      * @param  array<int, array<string, mixed>>  $submitted
      * @return list<array<string, mixed>>
@@ -211,7 +211,7 @@ class InstallationController extends Controller
         foreach (array_values($submitted) as $i => $row) {
             $id = $row['id'] ?? null;
             if ($id === null || ! $stored->has((int) $id)) {
-                $errors["variables.$i.id"] = 'Variabile sconosciuta: su un\'installazione non si possono aggiungere variabili.';
+                $errors["variables.$i.id"] = 'Unknown variable: variables cannot be added to an installation.';
             } else {
                 $byId[(int) $id] = $row;
             }
@@ -233,7 +233,7 @@ class InstallationController extends Controller
                 'use_default' => array_key_exists('use_default', $in) && $in['use_default'] !== null ? (bool) $in['use_default'] : $var->use_default,
             ];
 
-            // Un segreto senza la chiave resta invariato; un non segreto va sempre passato per intero.
+            // A secret without the key stays unchanged; a non-secret must always be passed in full.
             if (! $var->secret) {
                 $row['default'] = $var->default;
                 $row['value'] = array_key_exists('value', $in) ? $in['value'] : $var->value;

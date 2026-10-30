@@ -53,24 +53,24 @@ const selectClass =
 </script>
 
 <template>
-    <Head title="Installa versione" />
+    <Head title="Install version" />
 
     <div class="flex max-w-xl flex-col gap-6 p-4">
         <Heading
-            title="Installa versione"
+            title="Install version"
             :description="`${deployment.name} · ${deploymentHost.path}`"
         />
 
         <form class="space-y-6" @submit.prevent="submit">
             <div class="grid gap-2">
-                <Label for="project">Progetto</Label>
+                <Label for="project">Project</Label>
                 <select
                     id="project"
                     v-model="form.project_id"
                     :class="selectClass"
                     @change="form.project_version_id = ''"
                 >
-                    <option value="" disabled>Seleziona un progetto</option>
+                    <option value="" disabled>Select a project</option>
                     <option v-for="p in projects" :key="p.id" :value="p.id">
                         {{ p.name }}
                     </option>
@@ -78,14 +78,14 @@ const selectClass =
             </div>
 
             <div class="grid gap-2">
-                <Label for="version">Versione pubblicata</Label>
+                <Label for="version">Published version</Label>
                 <select
                     id="version"
                     v-model="form.project_version_id"
                     :class="selectClass"
                     :disabled="!project"
                 >
-                    <option value="" disabled>Seleziona una versione</option>
+                    <option value="" disabled>Select a version</option>
                     <option
                         v-for="v in project?.versions ?? []"
                         :key="v.id"
@@ -98,11 +98,11 @@ const selectClass =
             </div>
 
             <div class="grid gap-2">
-                <Label for="slug">Slug (opzionale)</Label>
+                <Label for="slug">Slug (optional)</Label>
                 <Input
                     id="slug"
                     v-model="form.slug"
-                    :placeholder="project?.slug ?? 'slug-del-progetto'"
+                    :placeholder="project?.slug ?? 'project-slug'"
                     autocomplete="off"
                 />
                 <InputError :message="form.errors.slug" />
@@ -115,7 +115,7 @@ const selectClass =
                     "
                     data-test="install-version"
                 >
-                    Installa
+                    Install
                 </Button>
                 <Button variant="outline" as-child>
                     <Link
@@ -126,7 +126,7 @@ const selectClass =
                             ])
                         "
                     >
-                        Annulla
+                        Cancel
                     </Link>
                 </Button>
             </div>

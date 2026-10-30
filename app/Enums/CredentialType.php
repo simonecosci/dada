@@ -11,8 +11,8 @@ enum CredentialType: string
     public function label(): string
     {
         return match ($this) {
-            self::Password => 'Password SSH',
-            self::SshKey => 'Chiave SSH',
+            self::Password => 'SSH password',
+            self::SshKey => 'SSH key',
             self::Registry => 'Registry',
         };
     }

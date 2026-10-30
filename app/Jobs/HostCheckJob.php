@@ -20,7 +20,7 @@ class HostCheckJob implements ShouldQueue
 
     public int $timeout = 120;
 
-    /** Timeout (secondi) di ciascun comando di verifica. */
+    /** Timeout (seconds) of each check command. */
     public const COMMAND_TIMEOUT = 30;
 
     public const DOCKER_COMMAND = "docker version --format '{{.Server.Version}}'";
@@ -55,8 +55,8 @@ class HostCheckJob implements ShouldQueue
     }
 
     /**
-     * Docker con il prefisso sudo dell'host. Se fallisce (daemon spento, permessi) l'host resta
-     * raggiungibile: si registra docker = null e l'errore.
+     * Docker with the host's sudo prefix. If it fails (daemon down, permissions) the host stays
+     * reachable: docker = null and the error are recorded.
      *
      * @return array{docker: ?string, docker_error?: string}
      */

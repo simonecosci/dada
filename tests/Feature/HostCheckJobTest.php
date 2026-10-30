@@ -37,9 +37,9 @@ it('marks host unreachable on connection failure', function () {
     $fakes = new FakeRemoteShellFactory;
     app()->instance(RemoteShellFactory::class, $fakes);
     $host = Host::factory()->create();
-    $fakes->shellFor($host)->failConnect(new HostKeyChanged('Chiave host cambiata'));
+    $fakes->shellFor($host)->failConnect(new HostKeyChanged('Host key changed'));
     HostCheckJob::dispatchSync($host->id);
-    expect($host->fresh())->reachable->toBeFalse()->and($host->fresh()->facts['error'])->toContain('Chiave host');
+    expect($host->fresh())->reachable->toBeFalse()->and($host->fresh()->facts['error'])->toContain('Host key');
 });
 
 it('marks host unreachable when a basic command fails', function () {

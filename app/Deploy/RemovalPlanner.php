@@ -7,13 +7,13 @@ use App\Models\DeploymentHost;
 class RemovalPlanner
 {
     /**
-     * Slug presenti nell'ultimo snapshot e assenti tra le installazioni attuali.
+     * Slugs present in the last snapshot and absent from the current installations.
      *
      * @return list<Removal>
      */
     public static function for(DeploymentHost $dh): array
     {
-        // Query esplicita: la relazione già caricata potrebbe essere precedente all'ultimo deploy.
+        // Explicit query: the already loaded relation might predate the last deploy.
         $snapshot = $dh->latestSnapshot()->first();
         if ($snapshot === null) {
             return [];

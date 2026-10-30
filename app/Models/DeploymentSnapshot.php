@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Stato effettivamente scritto su un host da un deploy riuscito.
- * `installations`, `host_variables` e `files` contengono segreti in chiaro: cifrati a riposo.
+ * State actually written to a host by a successful deploy.
+ * `installations`, `host_variables` and `files` contain secrets in clear text: encrypted at rest.
  */
 class DeploymentSnapshot extends Model
 {

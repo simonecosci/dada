@@ -25,7 +25,7 @@ defineOptions({
     layout: {
         breadcrumbs: [
             {
-                title: 'Credenziali',
+                title: 'Credentials',
                 href: CredentialController.index(),
             },
         ],
@@ -42,7 +42,7 @@ const formProps = computed(() =>
 const type = ref(props.credential?.type ?? 'ssh-key');
 const secretLabel = computed(() =>
     type.value === 'ssh-key'
-        ? 'Chiave privata (PEM)'
+        ? 'Private key (PEM)'
         : type.value === 'registry'
           ? 'Token'
           : 'Password',
@@ -50,12 +50,12 @@ const secretLabel = computed(() =>
 </script>
 
 <template>
-    <Head :title="isEdit ? 'Modifica credenziale' : 'Nuova credenziale'" />
+    <Head :title="isEdit ? 'Edit credential' : 'New credential'" />
 
     <div class="flex max-w-xl flex-col gap-6 p-4">
         <Heading
-            :title="isEdit ? 'Modifica credenziale' : 'Nuova credenziale'"
-            description="Il segreto è cifrato e non viene mai mostrato"
+            :title="isEdit ? 'Edit credential' : 'New credential'"
+            description="The secret is encrypted and never shown"
         />
 
         <Form
@@ -64,7 +64,7 @@ const secretLabel = computed(() =>
             v-slot="{ errors, processing }"
         >
             <div class="grid gap-2">
-                <Label for="name">Nome</Label>
+                <Label for="name">Name</Label>
                 <Input
                     id="name"
                     name="name"
@@ -76,7 +76,7 @@ const secretLabel = computed(() =>
             </div>
 
             <div class="grid gap-2">
-                <Label for="type">Tipo</Label>
+                <Label for="type">Type</Label>
                 <select
                     id="type"
                     name="type"
@@ -91,7 +91,7 @@ const secretLabel = computed(() =>
             </div>
 
             <div v-if="type === 'registry'" class="grid gap-2">
-                <Label for="username">Utente</Label>
+                <Label for="username">User</Label>
                 <Input
                     id="username"
                     name="username"
@@ -103,7 +103,7 @@ const secretLabel = computed(() =>
             </div>
 
             <div v-if="type === 'registry'" class="grid gap-2">
-                <Label for="registry_url">URL registry</Label>
+                <Label for="registry_url">Registry URL</Label>
                 <Input
                     id="registry_url"
                     name="registry_url"
@@ -119,7 +119,7 @@ const secretLabel = computed(() =>
                 <Label for="secret">
                     {{ secretLabel }}
                     <span v-if="isEdit" class="text-muted-foreground">
-                        (lascia vuoto per non cambiarlo)
+                        (leave empty to keep unchanged)
                     </span>
                 </Label>
                 <textarea
@@ -149,18 +149,17 @@ const secretLabel = computed(() =>
                     autocomplete="new-password"
                 />
                 <p class="text-xs text-muted-foreground">
-                    Le chiavi con passphrase non sono supportate in questa
-                    versione.
+                    Keys with a passphrase are not supported in this version.
                 </p>
                 <InputError :message="errors.passphrase" />
             </div>
 
             <div class="flex items-center gap-4">
                 <Button :disabled="processing" data-test="save-credential">
-                    Salva
+                    Save
                 </Button>
                 <Button variant="outline" as-child>
-                    <Link :href="CredentialController.index()">Annulla</Link>
+                    <Link :href="CredentialController.index()">Cancel</Link>
                 </Button>
             </div>
         </Form>

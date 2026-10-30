@@ -4,9 +4,9 @@ namespace App\Generation;
 
 enum EnvFormat
 {
-    /** Valori tra apici, per il dotenv di docker compose. */
+    /** Quoted values, for the docker compose dotenv. */
     case Quoted;
 
-    /** Righe KEY=value letterali, per `docker run --env-file` e `docker stack`. */
+    /** Literal KEY=value lines, for `docker run --env-file` and `docker stack`. */
     case Raw;
 }

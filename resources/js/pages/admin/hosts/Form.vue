@@ -48,12 +48,12 @@ const selectClass =
 </script>
 
 <template>
-    <Head :title="isEdit ? 'Modifica host' : 'Nuovo host'" />
+    <Head :title="isEdit ? 'Edit host' : 'New host'" />
 
     <div class="flex max-w-xl flex-col gap-6 p-4">
         <Heading
-            :title="isEdit ? 'Modifica host' : 'Nuovo host'"
-            description="Connessione SSH, credenziale e jump host opzionale"
+            :title="isEdit ? 'Edit host' : 'New host'"
+            description="SSH connection, credential and optional jump host"
         />
 
         <Form
@@ -62,7 +62,7 @@ const selectClass =
             v-slot="{ errors, processing }"
         >
             <div class="grid gap-2">
-                <Label for="name">Nome</Label>
+                <Label for="name">Name</Label>
                 <Input
                     id="name"
                     name="name"
@@ -86,7 +86,7 @@ const selectClass =
             </div>
 
             <div class="grid gap-2">
-                <Label for="port">Porta</Label>
+                <Label for="port">Port</Label>
                 <Input
                     id="port"
                     type="number"
@@ -100,7 +100,7 @@ const selectClass =
             </div>
 
             <div class="grid gap-2">
-                <Label for="username">Utente SSH</Label>
+                <Label for="username">SSH user</Label>
                 <Input
                     id="username"
                     name="username"
@@ -112,7 +112,7 @@ const selectClass =
             </div>
 
             <div class="grid gap-2">
-                <Label for="credential_id">Credenziale</Label>
+                <Label for="credential_id">Credential</Label>
                 <select
                     id="credential_id"
                     name="credential_id"
@@ -120,7 +120,7 @@ const selectClass =
                     :value="host?.credential_id ?? ''"
                     required
                 >
-                    <option value="" disabled>Seleziona…</option>
+                    <option value="" disabled>Select…</option>
                     <option v-for="c in credentials" :key="c.id" :value="c.id">
                         {{ c.name }} ({{ c.type }})
                     </option>
@@ -136,7 +136,7 @@ const selectClass =
                     :class="selectClass"
                     :value="host?.jump_host_id ?? ''"
                 >
-                    <option value="">Nessuno</option>
+                    <option value="">None</option>
                     <option v-for="j in jumpHosts" :key="j.id" :value="j.id">
                         {{ j.name }}
                     </option>
@@ -146,8 +146,8 @@ const selectClass =
 
             <div class="grid gap-2">
                 <Label for="sudo">
-                    Prefisso sudo
-                    <span class="text-muted-foreground">(opzionale)</span>
+                    Sudo prefix
+                    <span class="text-muted-foreground">(optional)</span>
                 </Label>
                 <Input
                     id="sudo"
@@ -161,10 +161,10 @@ const selectClass =
 
             <div class="flex items-center gap-4">
                 <Button :disabled="processing" data-test="save-host">
-                    Salva
+                    Save
                 </Button>
                 <Button variant="outline" as-child>
-                    <Link :href="HostController.index()">Annulla</Link>
+                    <Link :href="HostController.index()">Cancel</Link>
                 </Button>
             </div>
         </Form>

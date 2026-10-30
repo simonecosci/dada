@@ -33,7 +33,7 @@ class DeploymentHost extends Model
 
     protected static function booted(): void
     {
-        // Passa da Eloquent, così l'hook di HasVariables rimuove anche le variabili delle installazioni.
+        // Goes through Eloquent so the HasVariables hook also removes the installations' variables.
         static::deleting(function (self $dh): void {
             $dh->installations()->reorder()->get()->each->delete();
             $dh->registries()->detach();

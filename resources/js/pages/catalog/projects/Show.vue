@@ -30,7 +30,7 @@ const props = defineProps<{
 
 defineOptions({
     layout: {
-        breadcrumbs: [{ title: 'Catalogo', href: ProjectController.index() }],
+        breadcrumbs: [{ title: 'Catalog', href: ProjectController.index() }],
     },
 });
 
@@ -41,7 +41,7 @@ function createVersion() {
 }
 
 function destroy() {
-    if (confirm(`Cancellare il progetto ${props.project.name}?`)) {
+    if (confirm(`Delete project ${props.project.name}?`)) {
         router.delete(ProjectController.destroy(props.project.id).url);
     }
 }
@@ -59,12 +59,10 @@ function destroy() {
             <div v-if="canManage" class="flex gap-2">
                 <Button variant="outline" as-child>
                     <Link :href="ProjectController.edit(project.id)">
-                        Modifica
+                        Edit
                     </Link>
                 </Button>
-                <Button variant="destructive" @click="destroy">
-                    Cancella
-                </Button>
+                <Button variant="destructive" @click="destroy"> Delete </Button>
             </div>
         </div>
 
@@ -72,10 +70,12 @@ function destroy() {
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 text-left">
                     <tr>
-                        <th class="px-4 py-2 font-medium">Versione</th>
-                        <th class="px-4 py-2 font-medium">Stato</th>
-                        <th class="px-4 py-2 font-medium">Pubblicata il</th>
-                        <th class="px-4 py-2 text-right font-medium">Azioni</th>
+                        <th class="px-4 py-2 font-medium">Version</th>
+                        <th class="px-4 py-2 font-medium">Status</th>
+                        <th class="px-4 py-2 font-medium">Published on</th>
+                        <th class="px-4 py-2 text-right font-medium">
+                            Actions
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -91,8 +91,8 @@ function destroy() {
                             >
                                 {{
                                     v.status === 'published'
-                                        ? 'Pubblicata'
-                                        : 'Bozza'
+                                        ? 'Published'
+                                        : 'Draft'
                                 }}
                             </Badge>
                         </td>
@@ -100,7 +100,7 @@ function destroy() {
                             {{
                                 v.published_at
                                     ? new Date(v.published_at).toLocaleString(
-                                          'it-IT',
+                                          'en-GB',
                                       )
                                     : '—'
                             }}
@@ -112,8 +112,8 @@ function destroy() {
                                 >
                                     {{
                                         v.status === 'published' || !canManage
-                                            ? 'Apri'
-                                            : 'Modifica'
+                                            ? 'Open'
+                                            : 'Edit'
                                     }}
                                 </Link>
                             </Button>
@@ -124,7 +124,7 @@ function destroy() {
                             colspan="4"
                             class="px-4 py-6 text-center text-muted-foreground"
                         >
-                            Nessuna versione.
+                            No versions.
                         </td>
                     </tr>
                 </tbody>
@@ -137,7 +137,7 @@ function destroy() {
             @submit.prevent="createVersion"
         >
             <label class="text-sm font-medium" for="new-version">
-                Nuova versione (bozza vuota)
+                New version (empty draft)
             </label>
             <div class="flex gap-2">
                 <Input
@@ -150,7 +150,7 @@ function destroy() {
                     :disabled="newVersion.processing"
                     data-test="create-version"
                 >
-                    Crea
+                    Create
                 </Button>
             </div>
             <InputError :message="newVersion.errors.version" />

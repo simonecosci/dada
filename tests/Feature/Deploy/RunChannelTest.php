@@ -20,7 +20,7 @@ beforeEach(function () {
         'broadcasting.connections.reverb.options.useTLS' => false,
     ]);
 
-    // I canali si registrano sul driver attivo al boot (null nei test): ri-registrali su quello reverb.
+    // Channels are registered on the active driver at boot (null in tests): re-register them on the reverb one.
     Broadcast::purge();
     require base_path('routes/channels.php');
 });

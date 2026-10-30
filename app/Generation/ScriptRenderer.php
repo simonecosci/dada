@@ -8,21 +8,21 @@ use App\Models\Installation;
 use Illuminate\Support\Collection;
 
 /**
- * Genera `<slug>.sh` e `restart.sh`. Questi script girano come root: ogni valore
- * fisso passa da quote(), ogni valore che deve espandere ${VAR} da interpolated().
+ * Generates `<slug>.sh` and `restart.sh`. These scripts run as root: every
+ * fixed value goes through quote(), every value that must expand ${VAR} goes through interpolated().
  */
 final class ScriptRenderer
 {
-    /** Chiavi di un init swarm tradotte in opzioni di `docker run`; le altre producono un warning. */
+    /** Keys of a swarm init translated into `docker run` options; the others produce a warning. */
     public const SWARM_INIT_KEYS = ['image', 'command', 'environment', 'env_file', 'networks', 'volumes'];
 
-    /** Modalità swarm senza un numero di repliche da scalare. */
+    /** Swarm modes without a replica count to scale. */
     private const UNSCALABLE_MODES = ['global', 'replicated-job', 'global-job'];
 
     /**
-     * `$$`, oppure ${NAME}, ${NAME-default}, ${NAME:-default} con default in whitelist
-     * (niente apici, $, `, ", \, } né a capo: dentro "${X:-...}" bash li reinterpreta),
-     * oppure qualunque altro `$` (rifiutato), oppure un carattere da proteggere.
+     * `$$`, or ${NAME}, ${NAME-default}, ${NAME:-default} with a whitelisted default
+     * (no quotes, $, `, ", \, } or newline: inside "${X:-...}" bash reinterprets them),
+     * or any other `$` (rejected), or a character to protect.
      */
     private const INTERPOLATION = '/\$\$|\$\{([A-Za-z_][A-Za-z0-9_]*)(?:(:?-)([A-Za-z0-9_.,:\/@%+=~ -]*))?\}|\$|[\\\\"`]/';
 
@@ -106,7 +106,7 @@ final class ScriptRenderer
         ]);
     }
 
-    /** Apice singolo POSIX, come escapeshellarg() su Linux (su Windows escapeshellarg usa le doppie virgolette). */
+    /** POSIX single quote, like escapeshellarg() on Linux (on Windows escapeshellarg uses double quotes). */
     public static function quote(string $value): string
     {
         self::rejectNul($value);
@@ -115,13 +115,13 @@ final class ScriptRenderer
     }
 
     /**
-     * Stringa tra doppie virgolette in cui restano espandibili solo ${NAME} (emesso come
-     * ${NAME-}, così `set -u` non interrompe: in compose una variabile assente vale vuoto),
-     * ${NAME-default} e ${NAME:-default} con default in whitelist. `$$` diventa un `$`
-     * letterale; " \ ` sono protetti da backslash; ogni altro `$` ($VAR, $(...), ${X:?},
-     * ${X:+y}, ${A:-${B}}, default con caratteri fuori whitelist) è GenerationFailed.
+     * Double-quoted string in which only ${NAME} stays expandable (emitted as
+     * ${NAME-}, so `set -u` does not abort: in compose a missing variable is empty),
+     * ${NAME-default} and ${NAME:-default} with a whitelisted default. `$$` becomes a literal
+     * `$`; " \ ` are protected by backslash; any other `$` ($VAR, $(...), ${X:?},
+     * ${X:+y}, ${A:-${B}}, default with non-whitelisted characters) is GenerationFailed.
      */
-    public static function interpolated(string $value, string $context = 'valore'): string
+    public static function interpolated(string $value, string $context = 'value'): string
     {
         self::rejectNul($value);
 
@@ -130,7 +130,7 @@ final class ScriptRenderer
             fn (array $m) => match (true) {
                 $m[0] === '$$' => '\\$',
                 $m[0] === '$' => throw new GenerationFailed([
-                    "{$context}: espressione con \$ non supportata (usa \${VAR}, \${VAR:-default} o \$\$)",
+                    "{$context}: unsupported expression with \$ (use \${VAR}, \${VAR:-default} or \$\$)",
                 ]),
                 isset($m[1]) && $m[1] !== '' => '${'.$m[1].(($m[2] ?? '') === '' ? '-' : $m[2].$m[3]).'}',
                 default => '\\'.$m[0],
@@ -168,7 +168,7 @@ final class ScriptRenderer
         }
 
         if (! isset($def['image']) || ! is_string($def['image']) || $def['image'] === '') {
-            throw new GenerationFailed(["init {$name}: image mancante"]);
+            throw new GenerationFailed(["init {$name}: image missing"]);
         }
         $parts[] = self::interpolated($def['image'], "init {$name}: image");
 
@@ -189,7 +189,7 @@ final class ScriptRenderer
         return array_map('strval', array_is_list($value) ? $value : array_keys($value));
     }
 
-    /** Nome reale di una rete o di un volume: `name:` esplicito, nome nudo se external, altrimenti `<stack>_<nome>`. */
+    /** Real name of a network or volume: explicit `name:`, bare name if external, otherwise `<stack>_<name>`. */
     private static function resourceName(DeploymentHost $dh, BuiltCompose $b, string $section, string $name): string
     {
         $def = $b->compose[$section][$name] ?? null;
@@ -210,7 +210,7 @@ final class ScriptRenderer
         foreach ($value === null ? [] : (is_array($value) && array_is_list($value) ? $value : [$value]) as $entry) {
             $path = is_array($entry) ? ($entry['path'] ?? null) : $entry;
             if (! is_string($path) || $path === '') {
-                throw new GenerationFailed(["init {$name}: env_file non valido"]);
+                throw new GenerationFailed(["init {$name}: invalid env_file"]);
             }
             $files[] = $path;
         }
@@ -218,21 +218,21 @@ final class ScriptRenderer
         return $files;
     }
 
-    /** @return list<string> argomenti già quotati per `-e` */
+    /** @return list<string> already-quoted arguments for `-e` */
     private static function environment(string $name, mixed $value): array
     {
         if ($value === null) {
             return [];
         }
         if (! is_array($value)) {
-            throw new GenerationFailed(["init {$name}: environment non valido"]);
+            throw new GenerationFailed(["init {$name}: invalid environment"]);
         }
 
         $pairs = [];
         if (array_is_list($value)) {
             foreach ($value as $item) {
                 if (! is_string($item)) {
-                    throw new GenerationFailed(["init {$name}: environment non valido"]);
+                    throw new GenerationFailed(["init {$name}: invalid environment"]);
                 }
                 $pairs[] = str_contains($item, '=') ? explode('=', $item, 2) : [$item, null];
             }
@@ -275,7 +275,7 @@ final class ScriptRenderer
             return self::interpolated($volume['source'].':'.$volume['target'].$suffix, "init {$name}: volumes");
         }
 
-        throw new GenerationFailed(["init {$name}: volume non supportato"]);
+        throw new GenerationFailed(["init {$name}: unsupported volume"]);
     }
 
     private static function isNamedVolume(string $source): bool
@@ -291,18 +291,18 @@ final class ScriptRenderer
             return [];
         }
         if (is_string($command)) {
-            return self::shellWords($command) ?? throw new GenerationFailed(["init {$name}: command non interpretabile"]);
+            return self::shellWords($command) ?? throw new GenerationFailed(["init {$name}: command cannot be parsed"]);
         }
         if (is_array($command) && array_is_list($command)) {
-            return array_map(fn ($arg) => self::scalar($name, 'command', $arg, 'command non interpretabile'), $command);
+            return array_map(fn ($arg) => self::scalar($name, 'command', $arg, 'command cannot be parsed'), $command);
         }
 
-        throw new GenerationFailed(["init {$name}: command non interpretabile"]);
+        throw new GenerationFailed(["init {$name}: command cannot be parsed"]);
     }
 
     /**
-     * Divide una stringa come farebbe una shell, senza espansioni: apici singoli, doppi
-     * (con \" \\ \$ \` ) e backslash. Null se le virgolette non sono bilanciate.
+     * Splits a string as a shell would, without expansions: single quotes, double
+     * (with \" \\ \$ \` ) and backslash. Null if the quotes are not balanced.
      *
      * @return list<string>|null
      */
@@ -369,12 +369,12 @@ final class ScriptRenderer
             is_string($value) => $value,
             is_bool($value) => $value ? 'true' : 'false',
             is_int($value), is_float($value) => (string) $value,
-            default => throw new GenerationFailed(["init {$name}: ".($message ?? "{$key} non valido")]),
+            default => throw new GenerationFailed(["init {$name}: ".($message ?? "{$key} is invalid")]),
         };
     }
 
     /**
-     * Null per i servizi replicated (scalabili), altrimenti la modalità.
+     * Null for replicated (scalable) services, otherwise the mode.
      *
      * @param  array<string, mixed>  $def
      */
@@ -385,7 +385,7 @@ final class ScriptRenderer
             return null;
         }
         if (! is_string($mode) || ! in_array($mode, self::UNSCALABLE_MODES, true)) {
-            throw new GenerationFailed(["{$slug}: deploy.mode del servizio \"{$name}\" non valido"]);
+            throw new GenerationFailed(["{$slug}: deploy.mode of service \"{$name}\" is invalid"]);
         }
 
         return $mode;
@@ -400,7 +400,7 @@ final class ScriptRenderer
             $replicas = (int) $replicas;
         }
         if (! is_int($replicas) || $replicas < 0) {
-            throw new GenerationFailed(["{$slug}: deploy.replicas del servizio \"{$name}\" deve essere un intero non negativo"]);
+            throw new GenerationFailed(["{$slug}: deploy.replicas of service \"{$name}\" must be a non-negative integer"]);
         }
 
         return $replicas;
@@ -409,12 +409,12 @@ final class ScriptRenderer
     private static function rejectNul(string $value): void
     {
         if (str_contains($value, "\0")) {
-            throw new GenerationFailed(['valore con carattere NUL non supportato negli script']);
+            throw new GenerationFailed(['value with NUL character not supported in scripts']);
         }
     }
 
     /**
-     * Lo shebang si aggiunge qui perché PHP scarta una riga `#!` all'inizio della vista compilata.
+     * The shebang is added here because PHP discards a `#!` line at the start of the compiled view.
      *
      * @param  array<string, mixed>  $data
      */

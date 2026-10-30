@@ -41,7 +41,7 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
-        title: 'Catalogo',
+        title: 'Catalog',
         href: ProjectController.index(),
         icon: Boxes,
     },
@@ -56,12 +56,12 @@ const adminNavItems = computed<NavItem[]>(() =>
     page.props.auth.user?.is_admin
         ? [
               {
-                  title: 'Utenti',
+                  title: 'Users',
                   href: UserController.index(),
                   icon: Users,
               },
               {
-                  title: 'Credenziali',
+                  title: 'Credentials',
                   href: CredentialController.index(),
                   icon: KeyRound,
               },

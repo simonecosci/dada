@@ -16,10 +16,10 @@ it('refuses a chain whose jump host no longer uses an ssh key', function () {
     $jump->credential->update(['type' => 'password', 'secret' => 'pw']);
 
     (new OpenSshShellFactory)->for($target);
-})->throws(RemoteCommandFailed::class, 'Il jump host "bastion" deve usare una credenziale ssh-key.');
+})->throws(RemoteCommandFailed::class, 'The jump host "bastion" must use an ssh-key credential.');
 
 it('refuses a registry credential anywhere in the chain', function () {
     $target = Host::factory()->for(Credential::factory()->registry())->create(['name' => 'web1']);
 
     (new OpenSshShellFactory)->for($target);
-})->throws(RemoteCommandFailed::class, 'L\'host "web1" usa una credenziale registry, non usabile per SSH.');
+})->throws(RemoteCommandFailed::class, 'Host "web1" uses a registry credential, which cannot be used for SSH.');

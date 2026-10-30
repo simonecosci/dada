@@ -18,10 +18,10 @@ export type LogLine = {
 };
 
 export const statusLabels: Record<RunStatus, string> = {
-    queued: 'In coda',
-    running: 'In corso',
-    succeeded: 'Riuscita',
-    failed: 'Fallita',
+    queued: 'Queued',
+    running: 'Running',
+    succeeded: 'Succeeded',
+    failed: 'Failed',
 };
 
 export const typeLabels: Record<RunSummary['type'], string> = {
@@ -30,5 +30,5 @@ export const typeLabels: Record<RunSummary['type'], string> = {
 };
 
 export function formatDate(value: string | null): string {
-    return value ? new Date(value).toLocaleString('it-IT') : '-';
+    return value ? new Date(value).toLocaleString('en-GB') : '-';
 }

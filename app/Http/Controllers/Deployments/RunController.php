@@ -46,16 +46,16 @@ class RunController extends Controller
         ]);
     }
 
-    /** Admin: chiude un run rimasto bloccato (Ruling F4). */
+    /** Admin: closes a stuck run (Ruling F4). */
     public function fail(Request $request, DeployRun $run): RedirectResponse
     {
         Gate::authorize('admin');
 
-        if (! self::isActive($run) || ! RunTerminator::fail($run, 'segnata come fallita da '.$request->user()->name)) {
-            throw ValidationException::withMessages(['run' => "L'esecuzione è già terminata."]);
+        if (! self::isActive($run) || ! RunTerminator::fail($run, 'marked as failed by '.$request->user()->name)) {
+            throw ValidationException::withMessages(['run' => 'The run has already finished.']);
         }
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Esecuzione segnata come fallita.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Run marked as failed.']);
 
         return back();
     }
@@ -66,7 +66,7 @@ class RunController extends Controller
     }
 
     /**
-     * Ultime esecuzioni per le tab "Esecuzioni".
+     * Latest runs for the "Runs" tabs.
      *
      * @param  Relation<DeployRun, *, *>  $query
      * @return list<array<string, mixed>>

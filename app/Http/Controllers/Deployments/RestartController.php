@@ -22,7 +22,7 @@ class RestartController extends Controller
 {
     use DispatchesRuns;
 
-    private const BUSY = 'Esecuzione già in corso';
+    private const BUSY = 'A run is already in progress';
 
     public function __invoke(Request $request, DeploymentHost $deploymentHost): JsonResponse|RedirectResponse
     {
@@ -37,8 +37,8 @@ class RestartController extends Controller
             ],
             'service' => ['nullable', 'string', 'max:255', 'regex:'.RestartJob::SERVICE_REGEX.'D'],
         ], [
-            'installation_slug.required_with' => 'Il servizio richiede un\'installazione.',
-            'installation_slug.exists' => 'Installazione non trovata su questo host.',
+            'installation_slug.required_with' => 'The service requires an installation.',
+            'installation_slug.exists' => 'Installation not found on this host.',
         ]);
 
         $slug = $data['installation_slug'] ?? null;
@@ -47,7 +47,7 @@ class RestartController extends Controller
         if ($service !== null) {
             $installation = $deploymentHost->installations()->where('slug', $slug)->first();
             if (! in_array($service, self::services($installation->compose ?? []), true)) {
-                throw ValidationException::withMessages(['service' => 'Servizio non presente in questa installazione.']);
+                throw ValidationException::withMessages(['service' => 'Service not found in this installation.']);
             }
         }
 
@@ -58,7 +58,7 @@ class RestartController extends Controller
             'service' => $service,
         ];
 
-        // Lock sulla riga del deployment: due richieste concorrenti non possono creare due run attivi.
+        // Lock on the deployment row: two concurrent requests cannot create two active runs.
         $result = DB::transaction(function () use ($request, $deployment, $options) {
             Deployment::query()->whereKey($deployment->id)->lockForUpdate()->first();
 
@@ -75,7 +75,7 @@ class RestartController extends Controller
         });
 
         if ($result === null) {
-            // RestartControls usa una visita Inertia: un JSON 409 aprirebbe il modale di risposta non valida.
+            // RestartControls uses an Inertia visit: a JSON 409 would open the invalid-response modal.
             if ($request->expectsJson()) {
                 return response()->json(['message' => self::BUSY], 409);
             }
@@ -89,7 +89,7 @@ class RestartController extends Controller
     }
 
     /**
-     * Servizi avviabili dell'installazione (esclusi gli init), dal compose salvato.
+     * Startable services of the installation (inits excluded), from the saved compose.
      *
      * @param  array<string, mixed>  $compose
      * @return list<string>

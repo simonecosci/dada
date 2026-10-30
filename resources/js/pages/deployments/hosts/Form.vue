@@ -46,11 +46,11 @@ const selectClass =
 </script>
 
 <template>
-    <Head :title="isEdit ? 'Modifica host' : 'Aggiungi host'" />
+    <Head :title="isEdit ? 'Edit host' : 'Add host'" />
 
     <div class="flex max-w-xl flex-col gap-6 p-4">
         <Heading
-            :title="isEdit ? 'Modifica host' : 'Aggiungi host'"
+            :title="isEdit ? 'Edit host' : 'Add host'"
             :description="deployment.name"
         />
 
@@ -67,9 +67,7 @@ const selectClass =
                     required
                     :class="selectClass"
                 >
-                    <option value="" disabled selected>
-                        Seleziona un host
-                    </option>
+                    <option value="" disabled selected>Select a host</option>
                     <option v-for="h in hosts" :key="h.id" :value="h.id">
                         {{ h.name }} ({{ h.hostname }})
                     </option>
@@ -83,12 +81,12 @@ const selectClass =
             </p>
 
             <div class="grid gap-2">
-                <Label for="path">Percorso sull'host</Label>
+                <Label for="path">Path on the host</Label>
                 <Input
                     id="path"
                     name="path"
                     :default-value="deploymentHost?.path"
-                    placeholder="/srv/cliente-x"
+                    placeholder="/srv/client-x"
                     required
                     autocomplete="off"
                 />
@@ -96,7 +94,7 @@ const selectClass =
             </div>
 
             <div class="grid gap-2">
-                <Label for="orchestrator">Orchestratore</Label>
+                <Label for="orchestrator">Orchestrator</Label>
                 <select
                     id="orchestrator"
                     name="orchestrator"
@@ -111,7 +109,7 @@ const selectClass =
             </div>
 
             <div class="grid gap-2">
-                <Label for="stack_name">Nome dello stack</Label>
+                <Label for="stack_name">Stack name</Label>
                 <Input
                     id="stack_name"
                     name="stack_name"
@@ -125,11 +123,11 @@ const selectClass =
 
             <div class="flex items-center gap-4">
                 <Button :disabled="processing" data-test="save-host">
-                    Salva
+                    Save
                 </Button>
                 <Button variant="outline" as-child>
                     <Link :href="DeploymentController.show(deployment.id)">
-                        Annulla
+                        Cancel
                     </Link>
                 </Button>
             </div>

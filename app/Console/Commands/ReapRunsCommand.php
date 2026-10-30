@@ -12,9 +12,9 @@ class ReapRunsCommand extends Command
 {
     protected $signature = 'dada:runs:reap';
 
-    protected $description = 'Segna come falliti i run in coda o in corso da oltre lock_ttl + retry_after';
+    protected $description = 'Mark as failed the runs queued or running for longer than lock_ttl + retry_after';
 
-    public const ERROR = 'esecuzione scaduta: nessun avanzamento oltre il limite';
+    public const ERROR = 'run expired: no progress beyond the limit';
 
     public function handle(): int
     {
@@ -35,7 +35,7 @@ class ReapRunsCommand extends Command
             $reaped += RunTerminator::fail($run, self::ERROR) ? 1 : 0;
         }
 
-        $this->info("Run segnati come falliti: {$reaped}");
+        $this->info("Runs marked as failed: {$reaped}");
 
         return self::SUCCESS;
     }

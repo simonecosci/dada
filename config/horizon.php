@@ -210,7 +210,7 @@ return [
             'timeout' => 60,
             'nice' => 0,
         ],
-        // Deploy: coda dedicata, timeout del job = TTL del lock - 60 (vedi App\Jobs\DeployJob).
+        // Deploy: dedicated queue, job timeout = lock TTL - 60 (see App\Jobs\DeployJob).
         'supervisor-deploy' => [
             'connection' => 'redis-deploy',
             'queue' => ['deploy'],

@@ -25,7 +25,7 @@ defineOptions({
     layout: {
         breadcrumbs: [
             {
-                title: 'Utenti',
+                title: 'Users',
                 href: UserController.index(),
             },
         ],
@@ -44,12 +44,12 @@ const isMaintainer = ref(props.user?.is_maintainer ?? false);
 </script>
 
 <template>
-    <Head :title="isEdit ? 'Modifica utente' : 'Nuovo utente'" />
+    <Head :title="isEdit ? 'Edit user' : 'New user'" />
 
     <div class="flex max-w-xl flex-col gap-6 p-4">
         <Heading
-            :title="isEdit ? 'Modifica utente' : 'Nuovo utente'"
-            description="Nome, email, password e ruoli"
+            :title="isEdit ? 'Edit user' : 'New user'"
+            description="Name, email, password and roles"
         />
 
         <Form
@@ -58,7 +58,7 @@ const isMaintainer = ref(props.user?.is_maintainer ?? false);
             v-slot="{ errors, processing }"
         >
             <div class="grid gap-2">
-                <Label for="name">Nome</Label>
+                <Label for="name">Name</Label>
                 <Input
                     id="name"
                     name="name"
@@ -86,7 +86,7 @@ const isMaintainer = ref(props.user?.is_maintainer ?? false);
                 <Label for="password">
                     Password
                     <span v-if="isEdit" class="text-muted-foreground">
-                        (lascia vuoto per non cambiarla)
+                        (leave empty to keep unchanged)
                     </span>
                 </Label>
                 <Input
@@ -126,10 +126,10 @@ const isMaintainer = ref(props.user?.is_maintainer ?? false);
 
             <div class="flex items-center gap-4">
                 <Button :disabled="processing" data-test="save-user">
-                    Salva
+                    Save
                 </Button>
                 <Button variant="outline" as-child>
-                    <Link :href="UserController.index()">Annulla</Link>
+                    <Link :href="UserController.index()">Cancel</Link>
                 </Button>
             </div>
         </Form>

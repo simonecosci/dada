@@ -15,7 +15,7 @@ class DeployRunHost extends Model
 
     public $timestamps = false;
 
-    /** `error` va sempre mascherato con DeployLogger::mask() prima del salvataggio. */
+    /** `error` must always be masked with DeployLogger::mask() before saving. */
     protected $guarded = [];
 
     protected function casts(): array

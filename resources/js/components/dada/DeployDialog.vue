@@ -25,7 +25,7 @@ type PlannedRemoval = {
 const props = defineProps<{
     deploymentId: number;
     hosts: HostOption[];
-    /** Se impostato, il deploy riguarda solo questo host e la scelta è nascosta. */
+    /** If set, the deploy targets only this host and the choice is hidden. */
     fixedHostId?: number;
 }>();
 
@@ -82,7 +82,7 @@ async function submit(confirmRemovals = false) {
             }),
         });
 
-        // Successo: il server risponde con un redirect alla pagina del run, seguito da fetch.
+        // Success: the server responds with a redirect to the run page, followed by fetch.
         if (response.ok && response.redirected) {
             open.value = false;
             router.visit(response.url);
@@ -94,20 +94,20 @@ async function submit(confirmRemovals = false) {
 
         if (response.status === 409) {
             open.value = false;
-            toast.error(body.message ?? 'Esecuzione già in corso');
+            toast.error(body.message ?? 'A run is already in progress');
         } else if (response.status === 503) {
             open.value = false;
-            toast.error(body.message ?? "Impossibile accodare l'esecuzione.");
+            toast.error(body.message ?? 'Unable to queue the run.');
         } else if (response.status === 422 && Array.isArray(body.removals)) {
             removals.value = body.removals as PlannedRemoval[];
         } else if (response.status === 422) {
             const errors = Object.values(body.errors ?? {}).flat() as string[];
-            error.value = errors[0] ?? body.message ?? 'Richiesta non valida.';
+            error.value = errors[0] ?? body.message ?? 'Invalid request.';
         } else {
-            error.value = 'Impossibile avviare il deploy.';
+            error.value = 'Unable to start the deploy.';
         }
     } catch {
-        error.value = 'Impossibile avviare il deploy.';
+        error.value = 'Unable to start the deploy.';
     } finally {
         loading.value = false;
     }
@@ -122,7 +122,8 @@ async function submit(confirmRemovals = false) {
         <DialogContent>
             <DialogTitle>Deploy</DialogTitle>
             <DialogDescription>
-                Genera i file, li carica sugli host e riavvia i servizi.
+                Generates the files, uploads them to the hosts and restarts the
+                services.
             </DialogDescription>
 
             <div v-if="removals === null" class="flex flex-col gap-3 text-sm">
@@ -132,7 +133,7 @@ async function submit(confirmRemovals = false) {
                         type="checkbox"
                         data-test="deploy-pull"
                     />
-                    Aggiorna le immagini (pull)
+                    Update images (pull)
                 </label>
                 <label class="flex items-center gap-2">
                     <input
@@ -140,7 +141,7 @@ async function submit(confirmRemovals = false) {
                         type="checkbox"
                         data-test="deploy-restart"
                     />
-                    Riavvia i servizi
+                    Restart services
                 </label>
                 <label
                     v-if="fixedHostId === undefined"
@@ -152,7 +153,7 @@ async function submit(confirmRemovals = false) {
                         class="rounded-md border border-input bg-background px-3 py-2"
                         data-test="deploy-target"
                     >
-                        <option value="all">Tutti gli host</option>
+                        <option value="all">All hosts</option>
                         <option v-for="h in hosts" :key="h.id" :value="h.id">
                             {{ h.name }}
                         </option>
@@ -165,18 +166,18 @@ async function submit(confirmRemovals = false) {
                 class="flex flex-col gap-2 text-sm"
                 data-test="deploy-removals"
             >
-                <p>Verranno fermati e rimossi i servizi:</p>
+                <p>The following services will be stopped and removed:</p>
                 <ul class="list-disc pl-6">
                     <li v-for="line in removalLines" :key="line">{{ line }}</li>
                 </ul>
-                <p>Confermi?</p>
+                <p>Confirm?</p>
             </div>
 
             <InputError :message="error" />
 
             <DialogFooter class="gap-2">
                 <DialogClose as-child>
-                    <Button variant="outline">Annulla</Button>
+                    <Button variant="outline">Cancel</Button>
                 </DialogClose>
                 <Button
                     v-if="removals === null"
@@ -184,7 +185,7 @@ async function submit(confirmRemovals = false) {
                     data-test="deploy-submit"
                     @click="submit(false)"
                 >
-                    Avvia deploy
+                    Start deploy
                 </Button>
                 <Button
                     v-else
@@ -193,7 +194,7 @@ async function submit(confirmRemovals = false) {
                     data-test="deploy-confirm-removals"
                     @click="submit(true)"
                 >
-                    Conferma e avvia
+                    Confirm and start
                 </Button>
             </DialogFooter>
         </DialogContent>

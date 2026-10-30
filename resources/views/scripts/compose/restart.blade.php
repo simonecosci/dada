@@ -1,9 +1,9 @@
-{{-- La riga #!/usr/bin/env bash la aggiunge ScriptRenderer::render(): PHP scarta un #! iniziale. --}}
+{{-- The #!/usr/bin/env bash line is added by ScriptRenderer::render(): PHP discards a leading #!. --}}
 set -euo pipefail
 cd "$(dirname "$0")"
 
 usage() {
-  printf 'Uso: %s start|stop|restart|status\n' "$0" >&2
+  printf 'Usage: %s start|stop|restart|status\n' "$0" >&2
   exit 2
 }
 

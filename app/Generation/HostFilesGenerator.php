@@ -10,7 +10,7 @@ use Throwable;
 
 class HostFilesGenerator
 {
-    /** Non lancia mai: ogni errore finisce in `errors` e `files` resta vuoto. */
+    /** Never throws: every error ends up in `errors` and `files` stays empty. */
     public function generate(DeploymentHost $dh): GeneratedFiles
     {
         $errors = [];
@@ -35,7 +35,7 @@ class HostFilesGenerator
 
             $put = function (string $name, string $contents) use (&$files, &$errors): void {
                 if (array_key_exists($name, $files)) {
-                    $errors[] = "{$name}: il file verrebbe generato due volte (nome in conflitto)";
+                    $errors[] = "{$name}: the file would be generated twice (conflicting name)";
 
                     return;
                 }
@@ -59,8 +59,8 @@ class HostFilesGenerator
         } catch (Throwable $e) {
             report($e);
             $errors[] = $e instanceof DecryptException
-                ? 'impossibile decifrare una variabile segreta'
-                : 'errore interno durante la generazione ('.$e::class.')';
+                ? 'unable to decrypt a secret variable'
+                : 'internal error during generation ('.$e::class.')';
         }
 
         $errors = array_values(array_unique($errors));

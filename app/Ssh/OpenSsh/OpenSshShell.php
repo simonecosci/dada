@@ -16,17 +16,17 @@ use Symfony\Component\Process\Process;
 use Throwable;
 
 /**
- * Shell remota basata sul client OpenSSH. Va creata tramite OpenSshShellFactory,
- * che valida la catena; close() va chiamato in finally da chi la usa.
+ * Remote shell based on the OpenSSH client. It must be created via OpenSshShellFactory,
+ * which validates the chain; close() must be called in a finally by whoever uses it.
  */
 class OpenSshShell implements RemoteShell
 {
     private string $workDir;
 
     /**
-     * Directory dei socket ControlMaster. È separata da $workDir e volutamente corta:
-     * il path di un socket unix è limitato a ~104 caratteri e ssh vi aggiunge
-     * hash (%C, 40 caratteri) e un suffisso temporaneo.
+     * Directory of the ControlMaster sockets. It is separate from $workDir and deliberately short:
+     * a unix socket path is limited to ~104 characters and ssh appends to it
+     * a hash (%C, 40 characters) and a temporary suffix.
      */
     private string $controlDir;
 
@@ -39,7 +39,7 @@ class OpenSshShell implements RemoteShell
     private bool $closed = false;
 
     /**
-     * @param  list<Host>  $chain  dal primo salto al target, già validata
+     * @param  list<Host>  $chain  from the first hop to the target, already validated
      */
     public function __construct(private readonly array $chain)
     {
@@ -50,8 +50,8 @@ class OpenSshShell implements RemoteShell
         $this->knownHostsFile = $this->workDir.'/known_hosts';
         $this->configFile = $this->workDir.'/config';
 
-        // Se il costruttore fallisce PHP non chiama __destruct: le chiavi già
-        // scritte vanno rimosse qui.
+        // If the constructor fails PHP does not call __destruct: the keys already
+        // written must be removed here.
         try {
             $this->setUp();
         } catch (Throwable $e) {
@@ -119,7 +119,7 @@ class OpenSshShell implements RemoteShell
                 }
             });
         } catch (ProcessTimedOutException) {
-            throw new RemoteCommandFailed("Timeout del comando remoto su \"{$this->target->name}\": {$command}");
+            throw new RemoteCommandFailed("Remote command timeout on \"{$this->target->name}\": {$command}");
         } finally {
             $this->recordNewHostKeys();
         }
@@ -134,8 +134,8 @@ class OpenSshShell implements RemoteShell
     }
 
     /**
-     * Exit 255: chiave host cambiata (solo se l'output nomina un alias della catena)
-     * o altro errore di connessione.
+     * Exit 255: host key changed (only if the output names an alias of the chain)
+     * or other connection error.
      */
     private function connectionFailure(string $command, ExecResult $result): HostKeyChanged|RemoteCommandFailed
     {
@@ -143,7 +143,7 @@ class OpenSshShell implements RemoteShell
 
         if ($named !== null && (str_contains($result->output, 'REMOTE HOST IDENTIFICATION HAS CHANGED')
             || str_contains($result->output, 'Host key verification failed'))) {
-            return new HostKeyChanged('Chiave host cambiata per '.$named);
+            return new HostKeyChanged('Host key changed for '.$named);
         }
 
         return RemoteCommandFailed::from($command, $result);
@@ -161,8 +161,8 @@ class OpenSshShell implements RemoteShell
     }
 
     /**
-     * Comando remoto di put(): umask 077 così il file temporaneo non è mai leggibile da altri
-     * prima del chmod. Quoting POSIX (escapeshellarg su Windows produrrebbe apici in stile cmd).
+     * Remote command of put(): umask 077 so the temporary file is never readable by others
+     * before the chmod. POSIX quoting (escapeshellarg on Windows would produce cmd-style quotes).
      */
     public static function putCommand(string $remotePath, int $mode): string
     {
@@ -184,7 +184,7 @@ class OpenSshShell implements RemoteShell
                 (new Process(['ssh', '-F', $this->configFile, '-O', 'exit', SshConfigBuilder::alias($this->target)], timeout: 10))->run();
             }
         } catch (Throwable) {
-            // Il master potrebbe non esistere: la pulizia continua comunque.
+            // The master might not exist: cleanup continues anyway.
         } finally {
             $this->deleteDirectories();
         }
@@ -202,7 +202,7 @@ class OpenSshShell implements RemoteShell
     }
 
     /**
-     * TOFU: salva le righe known_hosts nuove sugli host della catena che non avevano host_key.
+     * TOFU: saves the new known_hosts lines on the chain hosts that had no host_key.
      */
     private function recordNewHostKeys(): void
     {
@@ -228,7 +228,7 @@ class OpenSshShell implements RemoteShell
     }
 
     /**
-     * Nome dell'host della catena il cui alias (dada-h{id}) compare nell'output, se c'è.
+     * Name of the chain host whose alias (dada-h{id}) appears in the output, if any.
      */
     private function hostNamedIn(string $output): ?string
     {

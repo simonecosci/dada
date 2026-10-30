@@ -31,7 +31,7 @@ class ProjectVersionController extends Controller
 
         $data = $request->validate(['version' => $this->versionRules($project, null)]);
 
-        // Template minimo: l'immagine vuota fa fallire la pubblicazione finché non viene compilata.
+        // Minimal template: the empty image makes publishing fail until it is filled in.
         $version = $project->versions()->create([
             'version' => $data['version'],
             'status' => VersionStatus::Draft,
@@ -70,7 +70,7 @@ class ProjectVersionController extends Controller
         Gate::authorize('update', $version->project);
 
         if ($version->isPublished()) {
-            abort(403, 'Una versione pubblicata è immutabile.');
+            abort(403, 'A published version is immutable.');
         }
 
         $data = $request->validate([
@@ -119,7 +119,7 @@ class ProjectVersionController extends Controller
         Gate::authorize('publish', $version->project);
 
         if ($version->isPublished()) {
-            throw ValidationException::withMessages(['version' => 'La versione è già pubblicata.']);
+            throw ValidationException::withMessages(['version' => 'The version is already published.']);
         }
 
         try {
@@ -150,11 +150,11 @@ class ProjectVersionController extends Controller
         Gate::authorize('delete', $version->project);
 
         if ($version->isPublished()) {
-            throw ValidationException::withMessages(['version' => 'Una versione pubblicata non può essere cancellata.']);
+            throw ValidationException::withMessages(['version' => 'A published version cannot be deleted.']);
         }
 
         if (Installation::where('project_version_id', $version->id)->exists()) {
-            throw ValidationException::withMessages(['version' => 'La versione è installata su uno o più host e non può essere cancellata.']);
+            throw ValidationException::withMessages(['version' => 'The version is installed on one or more hosts and cannot be deleted.']);
         }
 
         $project = $version->project;

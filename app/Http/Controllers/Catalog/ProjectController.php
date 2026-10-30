@@ -84,11 +84,11 @@ class ProjectController extends Controller
 
         if ($project->versions()->where('status', VersionStatus::Published)->exists()) {
             throw ValidationException::withMessages([
-                'project' => 'Il progetto ha versioni pubblicate e non può essere cancellato.',
+                'project' => 'The project has published versions and cannot be deleted.',
             ]);
         }
 
-        // Le versioni vanno cancellate via Eloquent: la cascata del DB salterebbe la pulizia delle variabili.
+        // Versions must be deleted via Eloquent: the DB cascade would skip the variable cleanup.
         DB::transaction(function () use ($project): void {
             $project->versions->each->delete();
             $project->delete();
@@ -105,8 +105,8 @@ class ProjectController extends Controller
             'slug' => ['required', 'string', 'max:255', 'regex:/\A[a-z0-9][a-z0-9-]*\z/', Rule::unique('projects', 'slug')->ignore($project?->id)],
             'description' => ['nullable', 'string', 'max:5000'],
         ], [
-            'slug.regex' => 'Lo slug può contenere solo minuscole, cifre e trattini.',
-            'slug.unique' => 'Questo slug è già in uso.',
+            'slug.regex' => 'The slug may only contain lowercase letters, digits and hyphens.',
+            'slug.unique' => 'This slug is already in use.',
         ]);
     }
 }

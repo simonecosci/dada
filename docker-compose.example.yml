@@ -1,0 +1,82 @@
+# Copy to docker-compose.yml, copy .env.example to .env and fill in the secrets
+# (APP_KEY, DB_PASSWORD, REVERB_APP_KEY, REVERB_APP_SECRET). See README.md.
+x-dada-env:
+    &dada-env # Override .env: never run the image with local/debug (Horizon would be public).
+    APP_ENV: production
+    APP_DEBUG: 'false'
+
+x-dada: &dada
+    image: ghcr.io/simonecosci/dada:latest
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+        postgres:
+            condition: service_healthy
+        redis:
+            condition: service_started
+    volumes:
+        - storage:/var/www/html/storage
+
+services:
+    app:
+        <<: *dada
+        environment:
+            <<: *dada-env
+            DADA_ROLE: web
+            REVERB_UPSTREAM: reverb:8080
+        ports:
+            - '8000:8000'
+
+    worker:
+        <<: *dada
+        # Let a running deploy finish on `docker compose stop` (Horizon waits for it).
+        stop_grace_period: 1h
+        environment:
+            <<: *dada-env
+            DADA_ROLE: worker
+            # Queued broadcasts reach Reverb through the nginx of the `app` service.
+            REVERB_HOST: app
+            REVERB_PORT: '8000'
+            REVERB_SCHEME: http
+
+    scheduler:
+        <<: *dada
+        environment:
+            <<: *dada-env
+            DADA_ROLE: scheduler
+            REVERB_HOST: app
+            REVERB_PORT: '8000'
+            REVERB_SCHEME: http
+
+    reverb:
+        <<: *dada
+        environment:
+            <<: *dada-env
+            DADA_ROLE: reverb
+
+    postgres:
+        image: postgres:17-alpine
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: ${DB_DATABASE:-dada}
+            POSTGRES_USER: ${DB_USERNAME:-dada}
+            POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        healthcheck:
+            test:
+                [
+                    'CMD-SHELL',
+                    'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}',
+                ]
+            interval: 5s
+            timeout: 5s
+            retries: 10
+
+    redis:
+        image: redis:7-alpine
+        restart: unless-stopped
+
+volumes:
+    pgdata:
+    storage:

@@ -38,3 +38,41 @@ it('executes commands, uploads files and records the host key', function () {
         $shell->close();
     }
 })->group('ssh-integration');
+
+it('reaches a password target through a key-authenticated bastion', function () {
+    if (! env('DADA_SSH_TEST_JUMP_HOST')) {
+        $this->markTestSkipped('DADA_SSH_TEST_JUMP_HOST non impostato.');
+    }
+
+    $bastion = Host::factory()
+        ->for(Credential::factory()->sshKey()->state(['secret' => (string) file_get_contents((string) env('DADA_SSH_TEST_JUMP_KEY_FILE'))]))
+        ->create([
+            'hostname' => env('DADA_SSH_TEST_JUMP_HOST'),
+            'port' => (int) env('DADA_SSH_TEST_JUMP_PORT', 22),
+            'username' => (string) env('DADA_SSH_TEST_JUMP_USER', 'root'),
+            'host_key' => null,
+        ]);
+    $target = Host::factory()
+        ->for(Credential::factory()->password()->state(['secret' => (string) env('DADA_SSH_TEST_PASSWORD')]))
+        ->create([
+            'hostname' => env('DADA_SSH_TEST_JUMP_TARGET'),
+            'port' => (int) env('DADA_SSH_TEST_JUMP_TARGET_PORT', 22),
+            'username' => (string) env('DADA_SSH_TEST_USER', 'root'),
+            'jump_host_id' => $bastion->id,
+            'host_key' => null,
+        ]);
+
+    $shell = app(RemoteShellFactory::class)->for($target);
+
+    try {
+        $result = $shell->exec('hostname; echo via-bastion');
+
+        expect($result->exitCode)->toBe(0, $result->output)
+            ->and($result->stdout)->toEndWith("via-bastion\n")
+            ->and($result->stdout)->not->toContain('Warning');
+        expect($bastion->fresh()->host_key)->not->toBeEmpty()
+            ->and($target->fresh()->host_key)->not->toBeEmpty();
+    } finally {
+        $shell->close();
+    }
+})->group('ssh-integration');

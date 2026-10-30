@@ -133,10 +133,40 @@ jobs:
           echo "sshd not reachable" >&2
           exit 1
 
+      # Bastion for the jump-host case. Started here (not as a service) because it
+      # needs the public key generated in this job. The ssh-tunnel mod enables
+      # AllowTcpForwarding, required by ProxyJump. It joins the job network so it
+      # reaches the target service as `sshd:2222`.
+      - name: Start bastion
+        env:
+          JOB_NETWORK: ${{ job.services.sshd.network }}
+        run: |
+          ssh-keygen -q -t ed25519 -N '' -C dada-ci -f "$RUNNER_TEMP/bastion_key"
+          docker run -d --name bastion --network "$JOB_NETWORK" -p 2223:2222 \
+            -e USER_NAME=jump \
+            -e PUBLIC_KEY="$(cat "$RUNNER_TEMP/bastion_key.pub")" \
+            -e DOCKER_MODS=linuxserver/mods:openssh-server-ssh-tunnel \
+            lscr.io/linuxserver/openssh-server:latest
+          for _ in $(seq 1 60); do
+            ssh -i "$RUNNER_TEMP/bastion_key" -p 2223 -o BatchMode=yes -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null jump@127.0.0.1 true && exit 0
+            sleep 2
+          done
+          docker logs bastion >&2
+          echo "bastion not reachable" >&2
+          exit 1
+
       - name: SSH integration tests
         env:
           DADA_SSH_TEST_HOST: 127.0.0.1
           DADA_SSH_TEST_PORT: '2222'
           DADA_SSH_TEST_USER: dada
           DADA_SSH_TEST_PASSWORD: dada
+          DADA_SSH_TEST_JUMP_HOST: 127.0.0.1
+          DADA_SSH_TEST_JUMP_PORT: '2223'
+          DADA_SSH_TEST_JUMP_USER: jump
+          DADA_SSH_TEST_JUMP_KEY_FILE: ${{ runner.temp }}/bastion_key
+          # Target as seen from the bastion (service alias on the job network).
+          DADA_SSH_TEST_JUMP_TARGET: sshd
+          DADA_SSH_TEST_JUMP_TARGET_PORT: '2222'
         run: php artisan test --group=ssh-integration

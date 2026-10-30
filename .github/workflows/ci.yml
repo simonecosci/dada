@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       sshd:
-        image: lscr.io/linuxserver/openssh-server:latest
+        image: ghcr.io/linuxserver/openssh-server:latest
         env:
           PASSWORD_ACCESS: 'true'
           USER_NAME: dada
@@ -146,7 +146,7 @@ jobs:
             -e USER_NAME=jump \
             -e PUBLIC_KEY="$(cat "$RUNNER_TEMP/bastion_key.pub")" \
             -e DOCKER_MODS=linuxserver/mods:openssh-server-ssh-tunnel \
-            lscr.io/linuxserver/openssh-server:latest
+            ghcr.io/linuxserver/openssh-server:latest
           for _ in $(seq 1 60); do
             ssh -i "$RUNNER_TEMP/bastion_key" -p 2223 -o BatchMode=yes -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null jump@127.0.0.1 true && exit 0

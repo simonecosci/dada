@@ -113,7 +113,7 @@ class DeployHostPipeline
     private function checkDiskSpace(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log): void
     {
         $log->step($dh, 'Controllo dello spazio disco');
-        $result = $this->exec($shell, $dh, $log, 'df -Pm "$(dirname '.ScriptRenderer::quote($dh->path).')" | awk \'NR==2{print $4}\'');
+        $result = $this->exec($shell, $dh, $log, self::diskFreeCommand($dh->path));
 
         $free = trim($result->stdout);
         if (preg_match('/\A\d+\z/', $free) !== 1) {
@@ -124,6 +124,16 @@ class DeployHostPipeline
         if ((int) $free < $min) {
             throw new RuntimeException("spazio insufficiente: {$free} MB liberi, minimo {$min}");
         }
+    }
+
+    /**
+     * MB liberi sul filesystem di $path: se $path (o i suoi genitori) non esiste ancora
+     * si risale al primo antenato esistente.
+     */
+    public static function diskFreeCommand(string $path): string
+    {
+        return 'p='.ScriptRenderer::quote($path).'; while [ ! -d "$p" ]; do p=$(dirname "$p"); done; '
+            .'df -Pm "$p" | awk \'NR==2{print $4}\'';
     }
 
     private function prepareFolder(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log): void

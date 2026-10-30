@@ -107,7 +107,7 @@ it('quotes the path and backs up generated and previous files with retention', f
     $commands = $shell->commands();
     $backup = collect($commands)->first(fn ($c) => str_contains($c, 'cp -p'));
 
-    expect($commands[0])->toBe("df -Pm \"\$(dirname '/srv/x')\" | awk 'NR==2{print \$4}'")
+    expect($commands[0])->toBe("p='/srv/x'; while [ ! -d \"\$p\" ]; do p=\$(dirname \"\$p\"); done; df -Pm \"\$p\" | awk 'NR==2{print \$4}'")
         ->and($commands[1])->toBe("mkdir -p '/srv/x/.dada/backups'")
         ->and($backup)->toStartWith("cd '/srv/x' && ")
         ->toContain('ts=$(date +%Y%m%d_%H%M%S)')
@@ -264,4 +264,14 @@ it('parses only stdout of the disk check, ignoring ssh warnings and banners on s
     runPipeline($run, $dh, ['pull' => false, 'restart' => false]);
 
     expect(DeploymentSnapshot::count())->toBe(1);
+});
+
+it('measures free space on the nearest existing ancestor of a missing nested path', function () {
+    $script = "mkdir -p \"srv/o'x\"\n"
+        ."df() { printf 'Filesystem\nfs 1 2 %s\n' \"\$2\"; }\n"
+        .DeployHostPipeline::diskFreeCommand("srv/o'x/missing/deeper")."\n";
+
+    $r = runBashScript(['check.sh' => $script], 'check.sh');
+
+    expect($r['exit'])->toBe(0, $r['output'])->and(trim($r['output']))->toBe("srv/o'x");
 });

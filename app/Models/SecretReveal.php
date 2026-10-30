@@ -11,6 +11,16 @@ class SecretReveal extends Model
 
     protected $guarded = [];
 
+    /** Ruling F2: il nome dell'utente resta nello storico anche dopo la sua cancellazione. */
+    protected static function booted(): void
+    {
+        static::creating(function (self $model): void {
+            if ($model->user_name === null && $model->user_id !== null) {
+                $model->user_name = User::query()->whereKey($model->user_id)->value('name');
+            }
+        });
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

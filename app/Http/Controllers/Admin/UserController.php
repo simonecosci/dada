@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Users\UserDeletionGuard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -93,6 +94,8 @@ class UserController extends Controller
                 'user' => 'Non puoi cancellare te stesso.',
             ]);
         }
+
+        UserDeletionGuard::check($user);
 
         $user->delete();
 

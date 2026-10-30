@@ -84,7 +84,7 @@ class RunController extends Controller
             'id' => $run->id,
             'type' => $run->type->value,
             'status' => $run->status->value,
-            'user' => $run->user?->name,
+            'user' => $run->user_name ?? $run->user?->name,
             'started_at' => $run->started_at?->toIso8601String(),
             'finished_at' => $run->finished_at?->toIso8601String(),
         ];

@@ -1,11 +1,11 @@
 name: image
 
+# Reusable workflow, called by the `image` job of ci.yml only after every CI job
+# succeeded on a push to main or to a v* tag. Being called (not triggered by
+# workflow_run) it keeps the caller's github.ref/sha, so metadata-action derives
+# latest/sha/semver tags exactly as on a direct push.
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*'
+  workflow_call:
 
 permissions:
   contents: read

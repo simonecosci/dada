@@ -127,6 +127,30 @@ The Reverb client config is not baked into the frontend bundle. The browser rece
 
 `.env.example` ships production defaults (`APP_ENV=production`, `APP_DEBUG=false`). With `APP_ENV=local` the Horizon dashboard is open to anyone, so use `local` only on a development machine.
 
+## API
+
+A JSON API under `/api/v1` covers operations, for example from a CI pipeline: read deployments, hosts, installations and runs, start a deploy or a restart, and follow a run and its log. It does not manage the catalog, credentials, hosts or users, and it never returns secrets.
+
+Create a token in **Settings → API tokens**. The token is shown once. A token acts with the permissions of its user and has one of two abilities:
+
+- **Read only** (`read`): the `GET` endpoints.
+- **Read and deploy** (`read`, `deploy`): also `POST …/deploy` and `POST …/restart`. These still require the Operator role on the deployment, or Admin.
+
+Send the token as `Authorization: Bearer <token>`. Deployments you cannot see answer `404`. The rate limit is 60 requests per minute per user. The OpenAPI reference is at `/docs/api` (JSON at `/docs/api.json`) for any logged-in user.
+
+```bash
+# Deploy: 202 with the run, 409 if a run is in progress, 422 with "removals" to confirm
+curl -X POST https://dada.example.com/api/v1/deployments/1/deploy \
+  -H "Authorization: Bearer $DADA_TOKEN" -H "Accept: application/json" \
+  -H "Content-Type: application/json" -d '{"pull": true, "restart": true}'
+
+# Follow the run: poll the log from the last line seen until the run is succeeded or failed
+curl "https://dada.example.com/api/v1/runs/42/logs?after=0" \
+  -H "Authorization: Bearer $DADA_TOKEN" -H "Accept: application/json"
+```
+
+The log answer carries `meta.last_id` (the next `after`), `meta.has_more` and `meta.run_status`.
+
 ## Development
 
 Requirements: PHP 8.5, Composer, Node.js, PostgreSQL and Redis.

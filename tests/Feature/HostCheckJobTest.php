@@ -42,16 +42,47 @@ it('marks host unreachable on connection failure', function () {
     expect($host->fresh())->reachable->toBeFalse()->and($host->fresh()->facts['error'])->toContain('Chiave host');
 });
 
-it('marks host unreachable when a command fails', function () {
+it('marks host unreachable when a basic command fails', function () {
     $fakes = new FakeRemoteShellFactory;
     app()->instance(RemoteShellFactory::class, $fakes);
     $host = Host::factory()->create();
-    $fakes->shellFor($host)->expect('/docker version/', 127, "docker: command not found\n");
+    $fakes->shellFor($host)->expect('/uname/', 126, "uname: permission denied\n");
 
     HostCheckJob::dispatchSync($host->id);
 
     expect($host->fresh())->reachable->toBeFalse()->checked_at->not->toBeNull()
-        ->and($host->fresh()->facts['error'])->toContain('docker: command not found');
+        ->and($host->fresh()->facts['error'])->toContain('uname: permission denied');
+});
+
+it('keeps the host reachable and records the docker error when docker fails', function () {
+    $fakes = new FakeRemoteShellFactory;
+    app()->instance(RemoteShellFactory::class, $fakes);
+    $host = Host::factory()->create();
+    $fakes->shellFor($host)->expect('/uname/', 0, "Linux 6.8\n")
+        ->expect('/docker version/', 1, '', "permission denied while trying to connect to the Docker daemon socket\n")
+        ->expect('/nproc/', 0, "4\n")->expect('/MemTotal/', 0, "7936\n")->expect('/df -Pm/', 0, "51200\n");
+
+    HostCheckJob::dispatchSync($host->id);
+
+    $facts = $host->fresh()->facts;
+    expect($host->fresh()->reachable)->toBeTrue()
+        ->and($facts)->toHaveKey('docker')
+        ->and($facts['docker'])->toBeNull()
+        ->and($facts['docker_error'])->toContain('permission denied while trying to connect')
+        ->and($facts['cpus'])->toBe(4);
+});
+
+it('runs docker through the host sudo prefix', function () {
+    $fakes = new FakeRemoteShellFactory;
+    app()->instance(RemoteShellFactory::class, $fakes);
+    $host = Host::factory()->create(['sudo' => 'sudo -n']);
+    $shell = $fakes->shellFor($host)->expect('/docker version/', 0, "27.3.1\n");
+
+    HostCheckJob::dispatchSync($host->id);
+
+    expect($shell->commands())->toContain("sudo -n sh -c 'docker version --format '\''{{.Server.Version}}'\'''")
+        ->toContain('uname -sr')
+        ->and($host->fresh()->facts['docker'])->toBe('27.3.1');
 });
 
 it('records uploaded files on the fake shell without recording a command', function () {

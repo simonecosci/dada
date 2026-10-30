@@ -13,10 +13,15 @@ class RemoteSteps
      */
     public static function wrap(DeploymentHost $dh, string $cmd): string
     {
-        $inner = 'cd '.ScriptRenderer::quote($dh->path).' && '.$cmd;
-        $sudo = self::sudo($dh);
+        return self::withSudo(self::sudo($dh), 'cd '.ScriptRenderer::quote($dh->path).' && '.$cmd);
+    }
 
-        return $sudo === '' ? $inner : $sudo.' sh -c '.ScriptRenderer::quote($inner);
+    /** $cmd così com'è senza sudo, altrimenti `<sudo> sh -c '<cmd>'`. */
+    public static function withSudo(string $sudo, string $cmd): string
+    {
+        $sudo = trim($sudo);
+
+        return $sudo === '' ? $cmd : $sudo.' sh -c '.ScriptRenderer::quote($cmd);
     }
 
     /** Prefisso sudo configurato dall'amministratore sull'host (testo emesso così com'è). */

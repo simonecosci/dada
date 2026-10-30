@@ -18,14 +18,14 @@ pest()->extend(TestCase::class)
 
 /*
 |--------------------------------------------------------------------------
-| Helper per la generazione degli script
+| Helpers for script generation
 |--------------------------------------------------------------------------
 */
 
 /** @return array{DeploymentHost, Installation, BuiltCompose} */
 function composeFixture(): array
 {
-    $dh = DeploymentHost::factory()->create(['orchestrator' => 'compose', 'stack_name' => 'cliente-x']);
+    $dh = DeploymentHost::factory()->create(['orchestrator' => 'compose', 'stack_name' => 'client-x']);
     $inst = Installation::factory()->for($dh)->create(['slug' => 'wp', 'compose' => ['services' => [
         'wp' => ['image' => 'wordpress:6'],
         'migrate' => ['image' => 'wordpress:6', 'command' => ['wp', 'core', 'update-db'], 'x-dada' => ['init' => true]],
@@ -37,7 +37,7 @@ function composeFixture(): array
 }
 
 /**
- * Host swarm con installazione 'wp': servizi wp (deploy.replicas 3) e cron, init migrate.
+ * Swarm host with installation 'wp': services wp (deploy.replicas 3) and cron, init migrate.
  *
  * @param  array<string, mixed>|null  $services
  * @param  array<string, mixed>  $extra  sezioni top-level aggiuntive (volumes, networks)
@@ -45,7 +45,7 @@ function composeFixture(): array
  */
 function swarmFixture(?array $services = null, array $extra = []): array
 {
-    $dh = DeploymentHost::factory()->create(['orchestrator' => 'swarm', 'stack_name' => 'cliente-x']);
+    $dh = DeploymentHost::factory()->create(['orchestrator' => 'swarm', 'stack_name' => 'client-x']);
     $services ??= [
         'wp' => ['image' => 'wordpress:6', 'deploy' => ['replicas' => 3]],
         'cron' => ['image' => 'wordpress:6'],
@@ -58,7 +58,7 @@ function swarmFixture(?array $services = null, array $extra = []): array
     return [$dh, $inst, $built];
 }
 
-/** Bash reale (Git Bash su Windows, mai il bash di WSL), oppure null. */
+/** Real bash (Git Bash on Windows, never WSL's bash), or null. */
 function bashBinary(): ?string
 {
     static $resolved = false;
@@ -84,21 +84,21 @@ function bashBinary(): ?string
 }
 
 /**
- * Scrive i file in una directory temporanea ed esegue $entry con bash.
- * `docker` è sostituito da una funzione che registra gli argomenti in docker.log
- * (una chiamata per riga, argomenti tra parentesi quadre) e fallisce con exit 1
- * se la riga di comando contiene $DOCKER_FAIL_ON.
+ * Writes the files to a temporary directory and runs $entry with bash.
+ * `docker` is replaced by a function that records the arguments in docker.log
+ * (one call per line, arguments in square brackets) and fails with exit 1
+ * if the command line contains $DOCKER_FAIL_ON.
  *
  * @param  array<string, string>  $files
  * @param  list<string>  $args
- *                              La directory viene rimossa: `files` riporta il contenuto finale (nome => contenuto).
+ *                              The directory is removed: `files` reports the final content (name => content).
  * @return array{exit: int, output: string, log: string, files: array<string, string>}
  */
 function runBashScript(array $files, string $entry, array $args = [], array $env = []): array
 {
     $bash = bashBinary();
     if ($bash === null) {
-        test()->markTestSkipped('bash non disponibile');
+        test()->markTestSkipped('bash not available');
     }
 
     $dir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'dada-sh-'.bin2hex(random_bytes(6));
@@ -144,12 +144,12 @@ SH;
     ];
 }
 
-/** Controlla la sintassi con `bash -n`; salta il test se bash non c'è. */
+/** Checks the syntax with `bash -n`; skips the test if bash is missing. */
 function assertBashSyntax(string $script): void
 {
     $bash = bashBinary();
     if ($bash === null) {
-        test()->markTestSkipped('bash non disponibile');
+        test()->markTestSkipped('bash not available');
     }
 
     $file = tempnam(sys_get_temp_dir(), 'dada-sh-');
@@ -162,15 +162,15 @@ function assertBashSyntax(string $script): void
 }
 
 /**
- * Host compose con installazione 'wp' (servizio wp, immagine wordpress:${WP_TAG}),
- * variabile container segreta DB_PASSWORD='pw-123' e variabile compose WP_TAG='6'.
+ * Compose host with installation 'wp' (service wp, image wordpress:${WP_TAG}),
+ * secret container variable DB_PASSWORD='pw-123' and compose variable WP_TAG='6'.
  *
  * @param  array<string, mixed>  $dhAttributes
- * @param  array<string, mixed>  $hostAttributes  attributi dell'installazione
+ * @param  array<string, mixed>  $hostAttributes  installation attributes
  */
 function hostWithWordpress(array $dhAttributes = [], array $hostAttributes = []): DeploymentHost
 {
-    $dh = DeploymentHost::factory()->create(['orchestrator' => 'compose', 'stack_name' => 'cliente-x', ...$dhAttributes]);
+    $dh = DeploymentHost::factory()->create(['orchestrator' => 'compose', 'stack_name' => 'client-x', ...$dhAttributes]);
     $inst = Installation::factory()->for($dh)->create([
         'slug' => 'wp',
         'compose' => ['services' => ['wp' => ['image' => 'wordpress:${WP_TAG}']]],
@@ -185,7 +185,7 @@ function hostWithWordpress(array $dhAttributes = [], array $hostAttributes = [])
 }
 
 /**
- * Deployment con due host compose (A e B, host SSH distinti), ciascuno con l'installazione 'wp' di hostWithWordpress().
+ * Deployment with two compose hosts (A and B, distinct SSH hosts), each with the 'wp' installation of hostWithWordpress().
  *
  * @return array{Deployment, DeploymentHost, DeploymentHost}
  */
@@ -198,7 +198,7 @@ function deploymentWithTwoHosts(): array
     return [$deployment, $a, $b];
 }
 
-/** Utente con ruolo operator sul deployment. */
+/** User with the operator role on the deployment. */
 function operatorOf(Deployment $deployment): User
 {
     $user = User::factory()->create();

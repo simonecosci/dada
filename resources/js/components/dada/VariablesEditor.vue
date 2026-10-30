@@ -33,7 +33,7 @@ function update(index: number, patch: Partial<VariableRow>) {
     );
 }
 
-/** Un campo vuoto equivale a "non toccato" (null): per un segreto esistente il valore resta invariato. */
+/** An empty field means "untouched" (null): for an existing secret the value is left unchanged. */
 function setField(index: number, field: 'default' | 'value', raw: string) {
     update(index, { [field]: raw === '' ? null : raw });
 }
@@ -55,7 +55,7 @@ function remove(index: number) {
 function placeholder(row: VariableRow, field: 'default' | 'value') {
     const has = field === 'default' ? row.has_default : row.has_value;
 
-    return row.secret && row.id && has ? 'Lascia vuoto per non cambiare' : '';
+    return row.secret && row.id && has ? 'Leave empty to keep unchanged' : '';
 }
 
 function error(index: number, field: string) {
@@ -71,11 +71,11 @@ function error(index: number, field: string) {
             class="grid gap-3 rounded-lg border p-3 md:grid-cols-2"
         >
             <div class="grid gap-1">
-                <label class="text-xs font-medium">Chiave</label>
+                <label class="text-xs font-medium">Key</label>
                 <Input
                     :model-value="row.key"
                     :disabled="readonly || !structural"
-                    placeholder="NOME_VARIABILE"
+                    placeholder="VARIABLE_NAME"
                     autocomplete="off"
                     @update:model-value="update(i, { key: String($event) })"
                 />
@@ -107,7 +107,7 @@ function error(index: number, field: string) {
             </div>
 
             <div class="grid gap-1 md:col-span-2">
-                <label class="text-xs font-medium">Descrizione</label>
+                <label class="text-xs font-medium">Description</label>
                 <Input
                     :model-value="row.description ?? ''"
                     :disabled="readonly || !structural"
@@ -131,7 +131,7 @@ function error(index: number, field: string) {
                             })
                         "
                     />
-                    Segreto
+                    Secret
                 </label>
                 <label class="flex items-center gap-2 text-sm">
                     <input
@@ -145,11 +145,11 @@ function error(index: number, field: string) {
                             })
                         "
                     />
-                    Obbligatoria
+                    Required
                 </label>
             </div>
 
-            <!-- Default modificabile (catalogo, host) oppure default in sola lettura + valore (installazione) -->
+            <!-- Editable default (catalog, host) or read-only default + value (installation) -->
             <div
                 v-if="mode === 'catalog' || mode === 'host'"
                 class="grid gap-1 md:col-span-2"
@@ -208,12 +208,12 @@ function error(index: number, field: string) {
                                 })
                             "
                         />
-                        Usa il default
+                        Use the default
                     </label>
                 </div>
 
                 <div v-if="!row.use_default" class="grid gap-1 md:col-span-2">
-                    <label class="text-xs font-medium">Valore</label>
+                    <label class="text-xs font-medium">Value</label>
                     <Input
                         :model-value="row.value ?? ''"
                         :type="row.secret ? 'password' : 'text'"
@@ -241,7 +241,7 @@ function error(index: number, field: string) {
                     size="sm"
                     @click="remove(i)"
                 >
-                    Rimuovi
+                    Remove
                 </Button>
             </div>
         </div>
@@ -254,7 +254,7 @@ function error(index: number, field: string) {
                 data-test="add-variable"
                 @click="add"
             >
-                Aggiungi variabile
+                Add variable
             </Button>
         </div>
     </div>

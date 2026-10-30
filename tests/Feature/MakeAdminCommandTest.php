@@ -9,13 +9,13 @@ it('promotes an existing user with dada:admin', function () {
 });
 
 it('creates a missing user with a random 20 character password', function () {
-    $this->artisan('dada:admin', ['email' => 'new@example.com', '--name' => 'Nuovo'])
+    $this->artisan('dada:admin', ['email' => 'new@example.com', '--name' => 'New'])
         ->expectsOutputToContain('Password')
         ->assertSuccessful();
 
     $user = User::whereEmail('new@example.com')->first();
     expect($user)->not->toBeNull()
-        ->and($user->name)->toBe('Nuovo')
+        ->and($user->name)->toBe('New')
         ->and($user->isAdmin())->toBeTrue()
         ->and($user->email_verified_at)->not->toBeNull();
 });

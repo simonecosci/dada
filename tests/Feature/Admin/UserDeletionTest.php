@@ -46,22 +46,22 @@ it('snapshots the user name on runs created by the controllers', function () {
     Queue::fake();
     $dh = hostWithWordpress();
     $op = operatorOf($dh->deployment);
-    $op->update(['name' => 'Op Uno']);
+    $op->update(['name' => 'Op One']);
 
     $this->actingAs($op)->post("/deployments/{$dh->deployment_id}/deploy");
 
-    expect(DeployRun::sole()->user_name)->toBe('Op Uno');
+    expect(DeployRun::sole()->user_name)->toBe('Op One');
 });
 
 it('refuses to delete the last operator of a deployment', function () {
-    $d = Deployment::factory()->create(['name' => 'Cliente X']);
+    $d = Deployment::factory()->create(['name' => 'Client X']);
     $op = operatorOf($d);
 
     $this->actingAs(deletionAdmin())->delete("/admin/users/{$op->id}")
-        ->assertSessionHasErrors(['user' => 'L\'utente è l\'unico operatore del deployment "Cliente X": assegna prima un altro operatore.']);
+        ->assertSessionHasErrors(['user' => 'The user is the only operator of the deployment "Client X": assign another operator first.']);
     expect(User::find($op->id))->not->toBeNull();
 
-    // Con un secondo operatore la cancellazione è permessa.
+    // With a second operator the deletion is allowed.
     operatorOf($d);
     $this->actingAs(deletionAdmin())->delete("/admin/users/{$op->id}")->assertRedirect('/admin/users');
     expect(User::find($op->id))->toBeNull();
@@ -71,7 +71,7 @@ it('refuses to delete the last admin', function () {
     $only = deletionAdmin();
 
     expect(fn () => UserDeletionGuard::check($only))
-        ->toThrow(ValidationException::class, 'Non puoi cancellare l\'ultimo amministratore.');
+        ->toThrow(ValidationException::class, 'You cannot delete the last administrator.');
 
     deletionAdmin();
     UserDeletionGuard::check($only);

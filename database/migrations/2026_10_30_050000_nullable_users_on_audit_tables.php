@@ -6,8 +6,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Ruling F2: cancellare un utente non deve cancellare (né bloccare) lo storico.
- * user_id diventa nullable con nullOnDelete e user_name conserva il nome al momento dell'azione.
+ * Ruling F2: deleting a user must not delete (nor block) the history.
+ * user_id becomes nullable with nullOnDelete and user_name keeps the name at the time of the action.
  */
 return new class extends Migration
 {

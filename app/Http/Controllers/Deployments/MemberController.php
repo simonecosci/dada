@@ -26,7 +26,7 @@ class MemberController extends Controller
             ],
             'role' => ['required', Rule::enum(DeploymentRole::class)],
         ], [
-            'user_id.unique' => 'Questo utente è già membro del deployment.',
+            'user_id.unique' => 'This user is already a member of the deployment.',
         ]);
 
         $deployment->members()->attach($data['user_id'], ['role' => $data['role']]);
@@ -46,7 +46,7 @@ class MemberController extends Controller
             Deployment::whereKey($deployment->id)->lockForUpdate()->first();
 
             if ($data['role'] !== DeploymentRole::Operator->value) {
-                $this->ensureNotLastOperator($deployment, $user, "Non si può declassare l'ultimo operatore del deployment.");
+                $this->ensureNotLastOperator($deployment, $user, 'The last operator of the deployment cannot be demoted.');
             }
 
             $deployment->members()->updateExistingPivot($user->id, ['role' => $data['role']]);
@@ -64,7 +64,7 @@ class MemberController extends Controller
         DB::transaction(function () use ($deployment, $user): void {
             Deployment::whereKey($deployment->id)->lockForUpdate()->first();
 
-            $this->ensureNotLastOperator($deployment, $user, "Non si può rimuovere l'ultimo operatore del deployment.");
+            $this->ensureNotLastOperator($deployment, $user, 'The last operator of the deployment cannot be removed.');
 
             $deployment->members()->detach($user->id);
         });

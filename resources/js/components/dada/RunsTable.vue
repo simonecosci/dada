@@ -56,12 +56,12 @@ function variant(status: RunStatus) {
             <thead class="bg-muted/50 text-left">
                 <tr>
                     <th class="px-4 py-2 font-medium">#</th>
-                    <th class="px-4 py-2 font-medium">Tipo</th>
-                    <th class="px-4 py-2 font-medium">Stato</th>
-                    <th class="px-4 py-2 font-medium">Utente</th>
-                    <th class="px-4 py-2 font-medium">Avvio</th>
-                    <th class="px-4 py-2 font-medium">Fine</th>
-                    <th class="px-4 py-2 text-right font-medium">Azioni</th>
+                    <th class="px-4 py-2 font-medium">Type</th>
+                    <th class="px-4 py-2 font-medium">Status</th>
+                    <th class="px-4 py-2 font-medium">User</th>
+                    <th class="px-4 py-2 font-medium">Started</th>
+                    <th class="px-4 py-2 font-medium">Finished</th>
+                    <th class="px-4 py-2 text-right font-medium">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -78,7 +78,7 @@ function variant(status: RunStatus) {
                     <td class="px-4 py-2">{{ formatDate(r.finished_at) }}</td>
                     <td class="px-4 py-2 text-right">
                         <Button variant="outline" size="sm" as-child>
-                            <Link :href="RunController.show(r.id)">Apri</Link>
+                            <Link :href="RunController.show(r.id)">Open</Link>
                         </Button>
                     </td>
                 </tr>
@@ -87,7 +87,7 @@ function variant(status: RunStatus) {
                         colspan="7"
                         class="px-4 py-6 text-center text-muted-foreground"
                     >
-                        Nessuna esecuzione.
+                        No runs.
                     </td>
                 </tr>
             </tbody>

@@ -8,5 +8,5 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Run rimasti attivi dopo la morte di un worker (Ruling F4).
+// Runs left active after a worker died (Ruling F4).
 Schedule::command('dada:runs:reap')->everyFiveMinutes()->withoutOverlapping();

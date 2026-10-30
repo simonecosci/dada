@@ -7,9 +7,9 @@ use App\Ssh\RemoteShell;
 use Throwable;
 
 /**
- * Shell finta per i test. I comandi senza expect() corrispondente restituiscono
- * exit 0 e output vuoto; tutti i comandi eseguiti sono registrati in commands().
- * put() registra il file in files() e NON aggiunge nulla a commands().
+ * Fake shell for tests. Commands without a matching expect() return
+ * exit 0 and empty output; all executed commands are recorded in commands().
+ * put() records the file in files() and does NOT add anything to commands().
  */
 class FakeRemoteShell implements RemoteShell
 {
@@ -20,7 +20,7 @@ class FakeRemoteShell implements RemoteShell
     private array $commands = [];
 
     /**
-     * Timeout passato a ciascun exec(), nello stesso ordine di $commands.
+     * Timeout passed to each exec(), in the same order as $commands.
      *
      * @var list<?int>
      */
@@ -34,8 +34,8 @@ class FakeRemoteShell implements RemoteShell
     private bool $closed = false;
 
     /**
-     * Risposta per i comandi che corrispondono alla regex $pattern (vince la prima registrata).
-     * $output è lo stdout; $stderr (opzionale) è anteposto nell'output unito, come rumore di ssh.
+     * Response for the commands matching the regex $pattern (the first registered wins).
+     * $output is the stdout; $stderr (optional) is prepended to the merged output, as ssh noise.
      */
     public function expect(string $pattern, int $exit = 0, string $output = '', string $stderr = ''): static
     {
@@ -45,7 +45,7 @@ class FakeRemoteShell implements RemoteShell
     }
 
     /**
-     * Ogni exec()/put() successivo lancia $e.
+     * Every subsequent exec()/put() throws $e.
      */
     public function failConnect(Throwable $e): static
     {

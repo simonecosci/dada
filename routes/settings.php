@@ -13,7 +13,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    // Niente auto-cancellazione dell'account (Ruling F2): gli utenti li cancellano gli amministratori.
+    // No self-deletion of the account (Ruling F2): users are deleted by administrators.
     Route::get('settings/security', [SecurityController::class, 'edit'])
         ->middleware(RequirePassword::class)
         ->name('security.edit');

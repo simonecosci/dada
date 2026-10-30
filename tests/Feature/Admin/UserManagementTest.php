@@ -55,12 +55,12 @@ it('updates a user and keeps the password when blank', function () {
     $hash = $u->password;
 
     $this->actingAs($admin)->put("/admin/users/{$u->id}", [
-        'name' => 'Nuovo', 'email' => $u->email, 'password' => '',
+        'name' => 'New', 'email' => $u->email, 'password' => '',
         'is_admin' => false, 'is_maintainer' => true,
     ])->assertRedirect('/admin/users');
 
     $u->refresh();
-    expect($u->name)->toBe('Nuovo')->and($u->isMaintainer())->toBeTrue()->and($u->password)->toBe($hash);
+    expect($u->name)->toBe('New')->and($u->isMaintainer())->toBeTrue()->and($u->password)->toBe($hash);
 });
 
 it('does not let an admin remove own admin flag', function () {

@@ -33,14 +33,14 @@ defineProps<{
         <div class="flex items-center justify-between">
             <Heading
                 title="Deployment"
-                description="Ambienti di destinazione a cui hai accesso"
+                description="Target environments you have access to"
             />
             <Button v-if="canCreate" as-child>
                 <Link
                     :href="DeploymentController.create()"
                     data-test="create-deployment"
                 >
-                    Nuovo deployment
+                    New deployment
                 </Link>
             </Button>
         </div>
@@ -49,9 +49,9 @@ defineProps<{
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 text-left">
                     <tr>
-                        <th class="px-4 py-2 font-medium">Nome</th>
+                        <th class="px-4 py-2 font-medium">Name</th>
                         <th class="px-4 py-2 font-medium">Slug</th>
-                        <th class="px-4 py-2 font-medium">Ambiente</th>
+                        <th class="px-4 py-2 font-medium">Environment</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -72,7 +72,7 @@ defineProps<{
                             colspan="3"
                             class="px-4 py-6 text-center text-muted-foreground"
                         >
-                            Nessun deployment.
+                            No deployments.
                         </td>
                     </tr>
                 </tbody>

@@ -84,7 +84,7 @@ it('stores the snapshot with installations, services and real files', function (
         ->and($snapshot->files['.env.wp'])->toContain('pw-123')
         ->and($snapshot->host_variables)->toBe([]);
 
-    // Cifrato a riposo.
+    // Encrypted at rest.
     $raw = DB::table('deployment_snapshots')->first();
     expect($raw->files)->not->toContain('pw-123')
         ->and($raw->installations)->not->toContain('pw-123');
@@ -174,7 +174,7 @@ it('fails on low disk space', function () {
     $run = DeployRun::factory()->for($dh->deployment)->create();
     $shell = $fakes->shellFor($dh->host)->expect('/df -Pm/', 0, "100\n");
 
-    expect(fn () => runPipeline($run, $dh))->toThrow(RuntimeException::class, 'spazio insufficiente: 100 MB liberi, minimo 1024');
+    expect(fn () => runPipeline($run, $dh))->toThrow(RuntimeException::class, 'insufficient space: 100 MB free, minimum 1024');
     expect($shell->files())->toBe([])
         ->and($shell->commands())->toHaveCount(1)
         ->and($shell->closed())->toBeTrue();
@@ -232,7 +232,7 @@ it('requires confirmation for removals and removes compose containers by label',
     $commands = implode("\n", $shell->commands());
     expect($commands)->toContain("rm -f '.env.old' 'old.sh'")
         ->toContain('label=com.docker.compose.service=old-web')
-        ->toContain('label=com.docker.compose.project=cliente-x')
+        ->toContain('label=com.docker.compose.project=client-x')
         ->and(collect($dh->latestSnapshot()->first()->installations)->pluck('slug')->all())->toBe(['wp']);
 });
 

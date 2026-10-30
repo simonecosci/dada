@@ -1,9 +1,9 @@
-{{-- La riga #!/usr/bin/env bash la aggiunge ScriptRenderer::render(): PHP scarta un #! iniziale. --}}
+{{-- The #!/usr/bin/env bash line is added by ScriptRenderer::render(): PHP discards a leading #!. --}}
 set -euo pipefail
 cd "$(dirname "$0")"
 
 usage() {
-  printf 'Uso: %s start|stop|restart|status [servizio|all]\n' "$0" >&2
+  printf 'Usage: %s start|stop|restart|status [service|all]\n' "$0" >&2
   exit 2
 }
 
@@ -23,7 +23,7 @@ esac
     stop) docker service scale {!! $service['full'] !!}=0 ;;
 @else
     start|stop)
-      printf 'servizio %s in modalità %s: start/stop non supportati, usa restart\n' {!! $service['name'] !!} {!! $service['mode'] !!} >&2
+      printf 'service %s in mode %s: start/stop not supported, use restart\n' {!! $service['name'] !!} {!! $service['mode'] !!} >&2
       if [ "$TARGET" != all ]; then
         exit 2
       fi
@@ -41,7 +41,7 @@ case "$TARGET" in
   {!! $service['name'] !!}) TARGETS=({!! $service['fn'] !!}) ;;
 @endforeach
   *)
-    printf 'Servizio non valido per %s: %s\n' {!! $slug !!} "$TARGET" >&2
+    printf 'Invalid service for %s: %s\n' {!! $slug !!} "$TARGET" >&2
     exit 2
     ;;
 esac

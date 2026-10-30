@@ -21,7 +21,7 @@ const props = defineProps<{
 
 defineOptions({
     layout: {
-        breadcrumbs: [{ title: 'Catalogo', href: ProjectController.index() }],
+        breadcrumbs: [{ title: 'Catalog', href: ProjectController.index() }],
     },
 });
 
@@ -34,10 +34,10 @@ const formProps = computed(() =>
 </script>
 
 <template>
-    <Head :title="isEdit ? 'Modifica progetto' : 'Nuovo progetto'" />
+    <Head :title="isEdit ? 'Edit project' : 'New project'" />
 
     <div class="flex max-w-xl flex-col gap-6 p-4">
-        <Heading :title="isEdit ? 'Modifica progetto' : 'Nuovo progetto'" />
+        <Heading :title="isEdit ? 'Edit project' : 'New project'" />
 
         <Form
             v-bind="formProps"
@@ -45,7 +45,7 @@ const formProps = computed(() =>
             v-slot="{ errors, processing }"
         >
             <div class="grid gap-2">
-                <Label for="name">Nome</Label>
+                <Label for="name">Name</Label>
                 <Input
                     id="name"
                     name="name"
@@ -70,7 +70,7 @@ const formProps = computed(() =>
             </div>
 
             <div class="grid gap-2">
-                <Label for="description">Descrizione</Label>
+                <Label for="description">Description</Label>
                 <textarea
                     id="description"
                     name="description"
@@ -83,10 +83,10 @@ const formProps = computed(() =>
 
             <div class="flex items-center gap-4">
                 <Button :disabled="processing" data-test="save-project">
-                    Salva
+                    Save
                 </Button>
                 <Button variant="outline" as-child>
-                    <Link :href="ProjectController.index()">Annulla</Link>
+                    <Link :href="ProjectController.index()">Cancel</Link>
                 </Button>
             </div>
         </Form>

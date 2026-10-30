@@ -6,8 +6,8 @@ final class BuiltCompose
 {
     /**
      * @param  array<string, mixed>  $compose  Contenuto di docker-compose.yml
-     * @param  array<string, array<string, array<string, mixed>>>  $initServices  slug => nome servizio => definizione (solo swarm)
-     * @param  array<string, list<string>>  $servicesBySlug  slug => nomi dei servizi presenti in $compose
+     * @param  array<string, array<string, array<string, mixed>>>  $initServices  slug => service name => definition (swarm only)
+     * @param  array<string, list<string>>  $servicesBySlug  slug => names of the services present in $compose
      * @param  list<string>  $warnings
      */
     public function __construct(

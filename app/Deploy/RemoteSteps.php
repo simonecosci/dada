@@ -8,15 +8,15 @@ use App\Models\DeploymentHost;
 class RemoteSteps
 {
     /**
-     * Esegue $cmd nella cartella del deployment host, con il prefisso sudo dell'host se configurato.
-     * $cmd deve avere già ogni valore interpolato quotato con ScriptRenderer::quote().
+     * Runs $cmd in the deployment host directory, with the host's sudo prefix if configured.
+     * $cmd must already have every interpolated value quoted with ScriptRenderer::quote().
      */
     public static function wrap(DeploymentHost $dh, string $cmd): string
     {
         return self::withSudo(self::sudo($dh), 'cd '.ScriptRenderer::quote($dh->path).' && '.$cmd);
     }
 
-    /** $cmd così com'è senza sudo, altrimenti `<sudo> sh -c '<cmd>'`. */
+    /** $cmd as is without sudo, otherwise `<sudo> sh -c '<cmd>'`. */
     public static function withSudo(string $sudo, string $cmd): string
     {
         $sudo = trim($sudo);
@@ -24,7 +24,7 @@ class RemoteSteps
         return $sudo === '' ? $cmd : $sudo.' sh -c '.ScriptRenderer::quote($cmd);
     }
 
-    /** Prefisso sudo configurato dall'amministratore sull'host (testo emesso così com'è). */
+    /** Sudo prefix configured by the administrator on the host (text emitted as is). */
     public static function sudo(DeploymentHost $dh): string
     {
         return trim((string) $dh->host->sudo);

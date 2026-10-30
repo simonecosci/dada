@@ -12,7 +12,7 @@ class SecretMasker
     /** @param  list<string>  $secrets */
     public function __construct(array $secrets)
     {
-        // Un segreto multi-riga (chiave PEM, ...) compare nell'output riga per riga: registra anche ogni riga.
+        // A multi-line secret (PEM key, ...) shows up in the output line by line: register each line too.
         $expanded = [];
         foreach ($secrets as $secret) {
             $expanded[] = $secret;
@@ -39,7 +39,7 @@ class SecretMasker
         return $text;
     }
 
-    /** Lunghezza in byte del segreto più lungo (0 se non ce ne sono). */
+    /** Length in bytes of the longest secret (0 if there are none). */
     public function maxLength(): int
     {
         return $this->secrets === [] ? 0 : strlen($this->secrets[0]);

@@ -106,7 +106,7 @@ class DeploymentController extends Controller
     {
         Gate::authorize('delete', $deployment);
 
-        // Passa da Eloquent, così gli hook di HasVariables rimuovono anche le variabili.
+        // Goes through Eloquent so the HasVariables hooks also remove the variables.
         DB::transaction(function () use ($deployment): void {
             $deployment->hosts()->get()->each->delete();
             $deployment->delete();
@@ -124,8 +124,8 @@ class DeploymentController extends Controller
             'description' => ['nullable', 'string', 'max:5000'],
             'environment' => ['nullable', 'string', 'max:255'],
         ], [
-            'slug.regex' => 'Lo slug può contenere solo minuscole, cifre e trattini.',
-            'slug.unique' => 'Questo slug è già in uso.',
+            'slug.regex' => 'The slug may only contain lowercase letters, digits and hyphens.',
+            'slug.unique' => 'This slug is already in use.',
         ]);
     }
 }

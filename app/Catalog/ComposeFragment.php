@@ -19,33 +19,33 @@ class ComposeFragment
         try {
             $data = Yaml::parse($yaml);
         } catch (ParseException $e) {
-            throw new InvalidComposeFragment(['YAML non valido: '.$e->getMessage()]);
+            throw new InvalidComposeFragment(['Invalid YAML: '.$e->getMessage()]);
         }
 
         if (! is_array($data) || ($data !== [] && array_is_list($data))) {
-            throw new InvalidComposeFragment(['(radice): deve essere una mappa']);
+            throw new InvalidComposeFragment(['(root): must be a map']);
         }
 
         $errors = [];
 
         foreach (array_keys($data) as $key) {
             if (! in_array($key, self::TOP_LEVEL, true)) {
-                $errors[] = "{$key}: chiave non consentita (ammesse: ".implode(', ', self::TOP_LEVEL).')';
+                $errors[] = "{$key}: key not allowed (allowed: ".implode(', ', self::TOP_LEVEL).')';
             }
         }
 
         $services = $data['services'] ?? null;
 
         if (! is_array($services) || $services === [] || array_is_list($services)) {
-            $errors[] = 'services: deve essere una mappa non vuota di servizi';
+            $errors[] = 'services: must be a non-empty map of services';
         } else {
             foreach ($services as $name => $service) {
                 $name = (string) $name;
                 if (! preg_match('/\A[a-zA-Z0-9][a-zA-Z0-9_.-]*\z/', $name)) {
-                    $errors[] = "services.{$name}: nome non valido";
+                    $errors[] = "services.{$name}: invalid name";
                 }
                 if (! is_array($service) || ($service !== [] && array_is_list($service))) {
-                    $errors[] = "services.{$name}: deve essere una mappa";
+                    $errors[] = "services.{$name}: must be a map";
 
                     continue;
                 }
@@ -61,7 +61,7 @@ class ComposeFragment
         foreach (['volumes', 'networks', 'configs'] as $key) {
             if (array_key_exists($key, $data) && $data[$key] !== null
                 && (! is_array($data[$key]) || ($data[$key] !== [] && array_is_list($data[$key])))) {
-                $errors[] = "{$key}: deve essere una mappa";
+                $errors[] = "{$key}: must be a map";
             }
         }
 
@@ -82,17 +82,17 @@ class ComposeFragment
     private static function validateXDada(string $name, mixed $xDada): array
     {
         if (! is_array($xDada) || ($xDada !== [] && array_is_list($xDada))) {
-            return ["services.{$name}.x-dada: deve essere una mappa"];
+            return ["services.{$name}.x-dada: must be a map"];
         }
 
         $errors = [];
         foreach (array_keys($xDada) as $key) {
             if ($key !== 'init') {
-                $errors[] = "services.{$name}.x-dada.{$key}: chiave non consentita (ammessa: init)";
+                $errors[] = "services.{$name}.x-dada.{$key}: key not allowed (allowed: init)";
             }
         }
         if (array_key_exists('init', $xDada) && ! is_bool($xDada['init'])) {
-            $errors[] = "services.{$name}.x-dada.init: deve essere booleano";
+            $errors[] = "services.{$name}.x-dada.init: must be a boolean";
         }
 
         return $errors;

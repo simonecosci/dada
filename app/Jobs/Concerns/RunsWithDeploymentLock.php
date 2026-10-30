@@ -20,10 +20,10 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Esecuzione di un run (deploy/restart) sotto il lock del deployment: stato del run,
- * righe per host, broadcast e chiusura in caso di interruzione del worker (failed()).
+ * Execution of a run (deploy/restart) under the deployment lock: run state,
+ * per-host rows, broadcast and closing when the worker is interrupted (failed()).
  *
- * La classe che usa il trait deve esporre `public int $runId`.
+ * The class using the trait must expose `public int $runId`.
  */
 trait RunsWithDeploymentLock
 {
@@ -33,8 +33,8 @@ trait RunsWithDeploymentLock
     }
 
     /**
-     * Esegue $perHost(DeploymentHost $dh, DeployLogger $log) per ogni host del run; un'eccezione
-     * marca fallito quell'host (messaggio mascherato) e si passa al successivo.
+     * Runs $perHost(DeploymentHost $dh, DeployLogger $log) for each host of the run; an exception
+     * marks that host as failed (masked message) and moves on to the next one.
      *
      * @param  Closure(DeploymentHost, DeployLogger): void  $perHost
      */
@@ -42,14 +42,14 @@ trait RunsWithDeploymentLock
     {
         $lock = Cache::lock(self::lockKey($run->deployment_id), (int) config('dada.deploy.lock_ttl'));
         if (! $lock->get()) {
-            $this->finish($run, RunStatus::Failed, 'deployment occupato');
+            $this->finish($run, RunStatus::Failed, 'deployment busy');
 
             return;
         }
 
         try {
             $options = $run->options ?? [];
-            // Il proprietario del lock permette a failed() di rilasciare solo il proprio.
+            // The lock owner lets failed() release only its own lock.
             $run->update(['options' => [...$options, 'lock_owner' => $lock->owner()]]);
             $hosts = $this->hosts($run, $options['deployment_host_id'] ?? null);
             $log = new DeployLogger($run, $this->masker($hosts));
@@ -62,7 +62,7 @@ trait RunsWithDeploymentLock
                 $allSucceeded = $this->runHost($run, $dh, $log, $perHost) && $allSucceeded;
             }
 
-            // Un admin (o il reaper) può averlo già chiuso come fallito: non sovrascrivere.
+            // An admin (or the reaper) may have already closed it as failed: do not overwrite.
             if ($run->refresh()->status === RunStatus::Running) {
                 $this->finish($run, $allSucceeded ? RunStatus::Succeeded : RunStatus::Failed);
             }
@@ -71,7 +71,7 @@ trait RunsWithDeploymentLock
         }
     }
 
-    /** Il worker ha interrotto il job (timeout, eccezione non gestita): chiude il run e libera il lock. */
+    /** The worker interrupted the job (timeout, unhandled exception): closes the run and releases the lock. */
     public function failed(?Throwable $e): void
     {
         $run = DeployRun::find($this->runId);
@@ -79,9 +79,9 @@ trait RunsWithDeploymentLock
             return;
         }
 
-        // Il messaggio dell'eccezione può contenere segreti e qui non c'è un masker: solo la classe.
-        // RunTerminator rilascia il lock solo se appartiene ancora a questo run.
-        RunTerminator::fail($run, 'esecuzione interrotta'.($e !== null ? ' ('.class_basename($e).')' : ''));
+        // The exception message may contain secrets and there is no masker here: class only.
+        // RunTerminator releases the lock only if it still belongs to this run.
+        RunTerminator::fail($run, 'run interrupted'.($e !== null ? ' ('.class_basename($e).')' : ''));
     }
 
     /** @param  Closure(DeploymentHost, DeployLogger): void  $perHost */
@@ -104,7 +104,7 @@ trait RunsWithDeploymentLock
             $log->flush();
             $message = $log->mask($e->getMessage());
             if (! $e instanceof RuntimeException) {
-                // Mai il messaggio grezzo: potrebbe contenere segreti.
+                // Never the raw message: it might contain secrets.
                 report(new RuntimeException(class_basename($e).': '.$message));
             }
             $runHost->update(['status' => RunStatus::Failed, 'error' => $message, 'finished_at' => now()]);
@@ -129,8 +129,8 @@ trait RunsWithDeploymentLock
     }
 
     /**
-     * Segreti letti direttamente dal DB (variabili segrete di host e installazioni, credenziali registry),
-     * indipendenti dalla generazione: una configurazione rotta non deve lasciare l'output senza mascheramento.
+     * Secrets read directly from the DB (secret variables of hosts and installations, registry credentials),
+     * independent of generation: a broken configuration must not leave the output unmasked.
      *
      * @param  Collection<int, DeploymentHost>  $hosts
      */
@@ -158,7 +158,7 @@ trait RunsWithDeploymentLock
                     }
                 }
             } catch (Throwable $e) {
-                // Secret non decifrabile: lo segnalerà la pipeline dell'host.
+                // Undecryptable secret: the host pipeline will report it.
                 report($e);
             }
         }
@@ -167,7 +167,7 @@ trait RunsWithDeploymentLock
     }
 
     /**
-     * Segreti aggiuntivi che la classe può fornire (es. quelli della generazione dei file).
+     * Additional secrets the class can provide (e.g. those from file generation).
      *
      * @param  Collection<int, DeploymentHost>  $hosts
      * @return list<string>

@@ -48,7 +48,7 @@ const failing = ref(false);
 function markFailed() {
     if (
         !confirm(
-            "Segnare l'esecuzione come fallita? Usalo solo se il worker non la sta più eseguendo.",
+            'Mark the run as failed? Use this only if the worker is no longer running it.',
         )
     ) {
         return;
@@ -68,7 +68,7 @@ function markFailed() {
 }
 const hostRows = ref<HostRow[]>(props.hosts.map((h) => ({ ...h })));
 
-// Dopo un reload parziale i dati del server sono quelli autorevoli.
+// After a partial reload the server data is authoritative.
 watch(
     () => props.run.status,
     (value) => (status.value = value),
@@ -105,15 +105,15 @@ const { channel } = useEcho<{
     }
 });
 
-// Recupera le righe emesse tra il render e la sottoscrizione (e dopo una riconnessione);
-// LiveLog scarta i duplicati per id.
+// Fetches the lines emitted between render and subscription (and after a reconnection);
+// LiveLog discards duplicates by id.
 channel().subscribed(() => {
     router.reload({ only: ['run', 'hosts', 'logs'] });
 });
 </script>
 
 <template>
-    <Head :title="`Esecuzione #${run.id}`" />
+    <Head :title="`Run #${run.id}`" />
 
     <div class="flex flex-col gap-6 p-4">
         <div class="flex items-center justify-between">
@@ -133,7 +133,7 @@ channel().subscribed(() => {
                     data-test="run-fail"
                     @click="markFailed"
                 >
-                    Segna come fallita
+                    Mark as failed
                 </Button>
                 <Badge
                     :variant="status === 'failed' ? 'destructive' : 'secondary'"
@@ -178,7 +178,7 @@ channel().subscribed(() => {
                 :href="DeploymentController.show(run.deployment.id)"
                 class="text-sm underline"
             >
-                Torna al deployment
+                Back to deployment
             </Link>
         </div>
     </div>

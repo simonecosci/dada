@@ -11,7 +11,7 @@ use App\Ssh\RemoteShellFactory;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 
-/** Esegue subito l'ultimo run in coda (la coda è finta nei test). */
+/** Runs the last queued run immediately (the queue is fake in tests). */
 function runQueuedRestart(): void
 {
     app()->call([new RestartJob(DeployRun::query()->latest('id')->firstOrFail()->id), 'handle']);
@@ -117,7 +117,7 @@ it('forbids viewers and rejects while a run is active', function () {
 
     DeployRun::factory()->for($dh->deployment)->create(['status' => 'running']);
     $this->actingAs(operatorOf($dh->deployment))->postJson("/deployment-hosts/{$dh->id}/restart", ['action' => 'start'])
-        ->assertStatus(409)->assertExactJson(['message' => 'Esecuzione già in corso']);
+        ->assertStatus(409)->assertExactJson(['message' => 'A run is already in progress']);
     Queue::assertNothingPushed();
 });
 
@@ -149,7 +149,7 @@ it('fails the run with a masked error and releases the lock when the command fai
 it('restarts a host whose generation is broken and still masks secrets', function () {
     $fakes = restartShells();
     $dh = hostWithWordpress();
-    // Servizio "wp" definito da due installazioni: la generazione fallisce.
+    // Service "wp" defined by two installations: generation fails.
     Installation::factory()->for($dh)->create(['slug' => 'dup', 'compose' => ['services' => ['wp' => ['image' => 'wordpress:6']]]]);
     $fakes->shellFor($dh->host)->expect('/restart\.sh/', 0, 'ok pw-123 done');
 
@@ -171,7 +171,7 @@ it('stores a friendly error when the script is missing on the host', function ()
 
     $host = DeployRun::sole()->hosts()->sole();
     expect($host->status)->toBe(RunStatus::Failed)
-        ->and($host->error)->toBe("script non presente sull'host: esegui prima un deploy")
+        ->and($host->error)->toBe('script not present on the host: run a deploy first')
         ->and(DeployRun::sole()->logs()->where('level', 'output')->pluck('message')->implode("\n"))->toContain('not found')->not->toContain('pw-123');
 });
 
@@ -184,7 +184,7 @@ it('redirects back with an error toast on 409 for Inertia requests', function ()
     $this->actingAs(operatorOf($dh->deployment))->from($back)
         ->post("/deployment-hosts/{$dh->id}/restart", ['action' => 'start'], ['X-Inertia' => 'true'])
         ->assertRedirect($back)
-        ->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'Esecuzione già in corso']);
+        ->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'A run is already in progress']);
     Queue::assertNothingPushed();
 });
 
@@ -196,5 +196,5 @@ it('returns validation errors to the page for Inertia requests', function () {
     $this->actingAs(operatorOf($dh->deployment))->from($back)
         ->post("/deployment-hosts/{$dh->id}/restart", ['action' => 'start', 'installation_slug' => 'wp', 'service' => 'nope'], ['X-Inertia' => 'true'])
         ->assertRedirect($back)
-        ->assertSessionHasErrors(['service' => 'Servizio non presente in questa installazione.']);
+        ->assertSessionHasErrors(['service' => 'Service not found in this installation.']);
 });

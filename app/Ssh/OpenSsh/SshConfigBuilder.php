@@ -14,25 +14,25 @@ class SshConfigBuilder
     }
 
     /**
-     * Contenuto ssh_config con un blocco "Host dada-h{id}" per ogni salto.
+     * ssh_config content with an "Host dada-h{id}" block for each hop.
      *
-     * @param  list<Host>  $chain  dal primo salto al target
-     * @param  array<int, string>  $identityFiles  host id => path della chiave privata
+     * @param  list<Host>  $chain  from the first hop to the target
+     * @param  array<int, string>  $identityFiles  host id => private key path
      */
     public function build(array $chain, array $identityFiles, string $knownHostsFile, string $controlDir): string
     {
         $blocks = [];
         $previous = null;
 
-        $knownHostsFile = $this->safe($knownHostsFile, 'il file known_hosts', null);
-        $controlDir = $this->safe($controlDir, 'la directory di controllo', null);
+        $knownHostsFile = $this->safe($knownHostsFile, 'the known_hosts file', null);
+        $controlDir = $this->safe($controlDir, 'the control directory', null);
 
         foreach ($chain as $host) {
             $lines = [
                 'Host '.self::alias($host),
                 'HostName '.$this->safe((string) $host->hostname, 'l\'hostname', $host),
                 'Port '.(int) $host->port,
-                'User '.$this->safe((string) $host->username, 'lo username', $host),
+                'User '.$this->safe((string) $host->username, 'the username', $host),
                 'HostKeyAlias '.self::alias($host),
             ];
 
@@ -48,10 +48,10 @@ class SshConfigBuilder
                     'NumberOfPasswordPrompts 1',
                 );
             } else {
-                // Gli hop a chiave non devono mai ripiegare su password: sshpass
-                // invierebbe la password del target al jump host.
+                // Key hops must never fall back to password: sshpass
+                // would send the target's password to the jump host.
                 if (isset($identityFiles[$host->id])) {
-                    $lines[] = 'IdentityFile '.$this->safe($identityFiles[$host->id], 'il file della chiave', $host);
+                    $lines[] = 'IdentityFile '.$this->safe($identityFiles[$host->id], 'the key file', $host);
                     $lines[] = 'IdentitiesOnly yes';
                 }
                 array_push($lines,
@@ -67,7 +67,7 @@ class SshConfigBuilder
                 'GlobalKnownHostsFile /dev/null',
                 'StrictHostKeyChecking accept-new',
                 'HashKnownHosts no',
-                // Niente "Warning: Permanently added ..." e simili su stderr.
+                // No "Warning: Permanently added ..." and the like on stderr.
                 'LogLevel ERROR',
                 'ConnectTimeout '.(int) config('dada.ssh.connect_timeout'),
                 'ServerAliveInterval 15',
@@ -84,14 +84,14 @@ class SshConfigBuilder
     }
 
     /**
-     * Rifiuta valori che potrebbero iniettare direttive ssh_config o token (%).
+     * Rejects values that could inject ssh_config directives or tokens (%).
      */
     private function safe(string $value, string $what, ?Host $host): string
     {
         if ($value === '' || preg_match('/[\s\x00-\x1F\x7F%"]/', $value)) {
-            $where = $host !== null ? " dell'host \"{$host->name}\"" : '';
+            $where = $host !== null ? " of host \"{$host->name}\"" : '';
 
-            throw new RemoteCommandFailed("Valore non valido per {$what}{$where}: spazi, caratteri di controllo, % e \" non sono ammessi.");
+            throw new RemoteCommandFailed("Invalid value for {$what}{$where}: spaces, control characters, % and \" are not allowed.");
         }
 
         return $value;

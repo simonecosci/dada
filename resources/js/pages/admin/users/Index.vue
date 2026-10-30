@@ -19,7 +19,7 @@ defineOptions({
     layout: {
         breadcrumbs: [
             {
-                title: 'Utenti',
+                title: 'Users',
                 href: UserController.index(),
             },
         ],
@@ -39,24 +39,24 @@ const deleteError = computed(() => {
 });
 
 function destroy(user: AdminUser) {
-    if (confirm(`Cancellare l'utente ${user.email}?`)) {
+    if (confirm(`Delete user ${user.email}?`)) {
         router.delete(UserController.destroy(user.id).url);
     }
 }
 </script>
 
 <template>
-    <Head title="Utenti" />
+    <Head title="Users" />
 
     <div class="flex flex-col gap-6 p-4">
         <div class="flex items-center justify-between">
             <Heading
-                title="Utenti"
-                description="Gestione di admin e maintainer"
+                title="Users"
+                description="Manage admins and maintainers"
             />
             <Button as-child>
                 <Link :href="UserController.create()" data-test="create-user">
-                    Nuovo utente
+                    New user
                 </Link>
             </Button>
         </div>
@@ -67,10 +67,12 @@ function destroy(user: AdminUser) {
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 text-left">
                     <tr>
-                        <th class="px-4 py-2 font-medium">Nome</th>
+                        <th class="px-4 py-2 font-medium">Name</th>
                         <th class="px-4 py-2 font-medium">Email</th>
-                        <th class="px-4 py-2 font-medium">Ruoli</th>
-                        <th class="px-4 py-2 text-right font-medium">Azioni</th>
+                        <th class="px-4 py-2 font-medium">Roles</th>
+                        <th class="px-4 py-2 text-right font-medium">
+                            Actions
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -90,7 +92,7 @@ function destroy(user: AdminUser) {
                             <div class="flex justify-end gap-2">
                                 <Button variant="outline" size="sm" as-child>
                                     <Link :href="UserController.edit(user.id)">
-                                        Modifica
+                                        Edit
                                     </Link>
                                 </Button>
                                 <Button
@@ -99,7 +101,7 @@ function destroy(user: AdminUser) {
                                     :disabled="user.id === currentUserId"
                                     @click="destroy(user)"
                                 >
-                                    Cancella
+                                    Delete
                                 </Button>
                             </div>
                         </td>

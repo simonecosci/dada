@@ -41,7 +41,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-            // Configurazione runtime di Echo: l'immagine pubblicata non dipende dai VITE_* di build.
+            // Echo runtime configuration: the published image does not depend on build-time VITE_*.
             'reverb' => [
                 'key' => config('reverb.apps.apps.0.key') ?: null,
                 'host' => config('dada.reverb.host'),

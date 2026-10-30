@@ -21,7 +21,7 @@ function failingQueue(): void
 }
 
 /*
-| Dispatch fallito
+| Failed dispatch
 */
 
 it('marks the deploy run failed and answers 503 JSON when the job cannot be queued', function () {
@@ -30,12 +30,12 @@ it('marks the deploy run failed and answers 503 JSON when the job cannot be queu
 
     $this->actingAs(operatorOf($dh->deployment))->postJson("/deployments/{$dh->deployment_id}/deploy")
         ->assertStatus(503)
-        ->assertJson(['message' => 'Impossibile accodare l\'esecuzione: riprova più tardi.']);
+        ->assertJson(['message' => 'Unable to queue the run: try again later.']);
 
     $run = DeployRun::sole();
     expect($run->status)->toBe(RunStatus::Failed)
         ->and($run->finished_at)->not->toBeNull()
-        ->and($run->error)->toBe('accodamento fallito (RuntimeException)')
+        ->and($run->error)->toBe('queueing failed (RuntimeException)')
         ->and($run->error)->not->toContain('10.0.0.9');
 });
 
@@ -46,7 +46,7 @@ it('redirects back with an error toast when the deploy job cannot be queued from
     $this->actingAs(operatorOf($dh->deployment))->from('/deployments/'.$dh->deployment_id)
         ->post("/deployments/{$dh->deployment_id}/deploy")
         ->assertRedirect('/deployments/'.$dh->deployment_id)
-        ->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'Impossibile accodare l\'esecuzione: riprova più tardi.']);
+        ->assertInertiaFlash('toast', ['type' => 'error', 'message' => 'Unable to queue the run: try again later.']);
 
     expect(DeployRun::sole()->status)->toBe(RunStatus::Failed);
 });
@@ -59,9 +59,9 @@ it('marks the restart run failed when the job cannot be queued', function () {
         ->assertStatus(503);
 
     expect(DeployRun::sole())->status->toBe(RunStatus::Failed)
-        ->error->toBe('accodamento fallito (RuntimeException)');
+        ->error->toBe('queueing failed (RuntimeException)');
 
-    // Il run fallito non blocca il successivo.
+    // The failed run does not block the next one.
     expect($dh->deployment->runs()->active()->exists())->toBeFalse();
 });
 
@@ -85,7 +85,7 @@ it('reaps queued and running runs older than lock_ttl + retry_after and nothing 
     $this->artisan('dada:runs:reap')->assertSuccessful();
 
     expect($stuckRunning->fresh())->status->toBe(RunStatus::Failed)->finished_at->not->toBeNull()
-        ->error->toBe('esecuzione scaduta: nessun avanzamento oltre il limite')
+        ->error->toBe('run expired: no progress beyond the limit')
         ->and($stuckHost->fresh())->status->toBe(RunStatus::Failed)
         ->and($doneHost->fresh())->status->toBe(RunStatus::Succeeded)
         ->and($stuckQueued->fresh()->status)->toBe(RunStatus::Failed)
@@ -104,7 +104,7 @@ it('releases only the lock owned by the reaped run', function () {
 
     $old = now()->subDays(2);
     DeployRun::factory()->for($own)->create(['status' => 'running', 'started_at' => $old, 'options' => ['lock_owner' => $ownLock->owner()]]);
-    // Il run stantio dell'altro deployment ha un owner diverso da quello del lock attuale.
+    // The stale run of the other deployment has a different owner from the current lock's.
     DeployRun::factory()->for($other)->create(['status' => 'running', 'started_at' => $old, 'options' => ['lock_owner' => 'stale-owner']]);
 
     $this->artisan('dada:runs:reap')->assertSuccessful();
@@ -121,7 +121,7 @@ it('schedules the reaper every five minutes', function () {
 });
 
 /*
-| "Segna come fallita"
+| "Mark as failed"
 */
 
 it('lets an admin mark an active run as failed', function () {
@@ -132,7 +132,7 @@ it('lets an admin mark an active run as failed', function () {
     $this->actingAs($admin)->from("/runs/{$run->id}")->post("/runs/{$run->id}/fail")
         ->assertRedirect("/runs/{$run->id}");
 
-    expect($run->fresh())->status->toBe(RunStatus::Failed)->error->toBe('segnata come fallita da Ada')
+    expect($run->fresh())->status->toBe(RunStatus::Failed)->error->toBe('marked as failed by Ada')
         ->and($host->fresh()->status)->toBe(RunStatus::Failed);
 });
 
@@ -166,15 +166,15 @@ it('does not overwrite a run marked failed while the job was still working', fun
     app()->instance(RemoteShellFactory::class, $fakes);
     $dh = hostWithWordpress();
     $run = DeployRun::factory()->for($dh->deployment)->create(['options' => ['pull' => false, 'restart' => false, 'confirm_removals' => false]]);
-    // Durante il controllo del disco un admin segna il run come fallito.
+    // During the disk check an admin marks the run as failed.
     $fakes->shellFor($dh->host)->expect('/df -Pm/', 0, "50000\n");
     Illuminate\Support\Facades\Event::listen(DeployRunUpdated::class, function ($event) use ($run) {
         if ($event->run->status === RunStatus::Running && $event->run->hosts()->exists()) {
-            RunTerminator::fail(DeployRun::find($run->id), 'segnata come fallita da Ada');
+            RunTerminator::fail(DeployRun::find($run->id), 'marked as failed by Ada');
         }
     });
 
     DeployJob::dispatchSync($run->id);
 
-    expect($run->fresh())->status->toBe(RunStatus::Failed)->error->toBe('segnata come fallita da Ada');
+    expect($run->fresh())->status->toBe(RunStatus::Failed)->error->toBe('marked as failed by Ada');
 });

@@ -11,7 +11,7 @@ class VersionPublisher
     public function publish(ProjectVersion $version): void
     {
         if ($version->isPublished()) {
-            throw new DomainException('La versione è già pubblicata.');
+            throw new DomainException('The version is already published.');
         }
 
         $version->status = VersionStatus::Published;

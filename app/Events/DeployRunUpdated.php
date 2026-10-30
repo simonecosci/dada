@@ -16,7 +16,7 @@ class DeployRunUpdated implements ShouldBroadcastNow
 
     public function __construct(public readonly DeployRun $run) {}
 
-    /** Dispatch che non fallisce se il broadcaster è irraggiungibile. */
+    /** Dispatch that does not fail if the broadcaster is unreachable. */
     public static function safeDispatch(DeployRun $run): void
     {
         try {

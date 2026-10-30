@@ -14,7 +14,7 @@ function buildFor(DeploymentHost $dh): BuiltCompose
 }
 
 it('builds compose with env_file, init profile and stack name', function () {
-    $dh = DeploymentHost::factory()->create(['orchestrator' => 'compose', 'stack_name' => 'cliente-x']);
+    $dh = DeploymentHost::factory()->create(['orchestrator' => 'compose', 'stack_name' => 'client-x']);
     $inst = Installation::factory()->for($dh)->create(['slug' => 'wp', 'compose' => ['services' => [
         'wp' => ['image' => 'wordpress:6'],
         'migrate' => ['image' => 'wordpress:6', 'x-dada' => ['init' => true]],
@@ -23,7 +23,7 @@ it('builds compose with env_file, init profile and stack name', function () {
 
     $b = ComposeBuilder::build($dh, $dh->installations, EffectiveVariables::for($dh));
 
-    expect($b->compose['name'])->toBe('cliente-x')
+    expect($b->compose['name'])->toBe('client-x')
         ->and($b->compose['services']['wp']['env_file'])->toBe(['.env.wp'])
         ->and($b->compose['services']['migrate']['profiles'])->toBe(['init'])
         ->and($b->compose['services']['migrate'])->not->toHaveKey('x-dada')
@@ -48,7 +48,7 @@ it('does not add env_file without container variables and normalizes an existing
 });
 
 it('moves init services out of the stack in swarm and makes default network attachable', function () {
-    $dh = DeploymentHost::factory()->create(['orchestrator' => 'swarm', 'stack_name' => 'cliente-x']);
+    $dh = DeploymentHost::factory()->create(['orchestrator' => 'swarm', 'stack_name' => 'client-x']);
     Installation::factory()->for($dh)->create(['slug' => 'wp', 'compose' => ['services' => [
         'wp' => ['image' => 'wordpress:6'],
         'migrate' => ['image' => 'wordpress:6', 'x-dada' => ['init' => true]],
@@ -84,7 +84,7 @@ it('collects all structural errors', function () {
 
     try {
         buildFor($dh);
-        $this->fail('GenerationFailed non lanciata');
+        $this->fail('GenerationFailed not thrown');
     } catch (GenerationFailed $e) {
         expect($e->errors)->toHaveCount(3)
             ->and($e->errors[0])->toContain('"db"')->toContain('one')->toContain('two')
@@ -105,7 +105,7 @@ it('detects used networks and named volumes in all syntaxes', function () {
 
     try {
         buildFor($dh);
-        $this->fail('GenerationFailed non lanciata');
+        $this->fail('GenerationFailed not thrown');
     } catch (GenerationFailed $e) {
         $all = implode("\n", $e->errors);
         expect($e->errors)->toHaveCount(3)
@@ -185,8 +185,8 @@ it('rejects external or non overlay networks used by swarm inits', function (arr
 
     expect(fn () => buildFor($dh))->toThrow(GenerationFailed::class, $message);
 })->with([
-    'external' => [['external' => true], 'network "back" usata dall\'init migrate: non può essere external in swarm'],
-    'bridge' => [['driver' => 'bridge'], 'network "back" usata dall\'init migrate: in swarm serve il driver overlay'],
+    'external' => [['external' => true], 'network "back" used by init migrate: cannot be external in swarm'],
+    'bridge' => [['driver' => 'bridge'], 'network "back" used by init migrate: swarm requires the overlay driver'],
 ]);
 
 it('rejects shell reserved .env keys in swarm only', function (string $key) {
@@ -194,7 +194,7 @@ it('rejects shell reserved .env keys in swarm only', function (string $key) {
     VariableSync::sync($dh, [['key' => $key, 'scope' => 'host-global', 'default' => 'x']]);
     Installation::factory()->for($dh)->create(['slug' => 'wp']);
 
-    expect(fn () => buildFor($dh->fresh()))->toThrow(GenerationFailed::class, "{$key}: nome riservato della shell");
+    expect(fn () => buildFor($dh->fresh()))->toThrow(GenerationFailed::class, "{$key}: reserved shell name");
 
     $dh->update(['orchestrator' => 'compose']);
     expect(buildFor($dh->fresh())->compose)->toHaveKey('services');

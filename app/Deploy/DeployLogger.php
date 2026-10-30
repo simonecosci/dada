@@ -13,7 +13,7 @@ class DeployLogger
     public const MAX_MESSAGE_BYTES = 8192;
 
     /**
-     * Righe incomplete di `output` in attesa del chunk successivo, per host (chiave 0 = nessun host).
+     * Incomplete `output` lines waiting for the next chunk, per host (key 0 = no host).
      *
      * @var array<int, string>
      */
@@ -22,7 +22,7 @@ class DeployLogger
     public function __construct(private readonly DeployRun $run, private SecretMasker $masker) {}
 
     /**
-     * Aggiunge segreti scoperti durante il run (es. credenziali registry): da qui in poi vengono mascherati.
+     * Adds secrets discovered during the run (e.g. registry credentials): from here on they are masked.
      *
      * @param  list<string>  $secrets
      */
@@ -58,9 +58,9 @@ class DeployLogger
             $this->write('output', $dh, rtrim($line, "\r"));
         }
 
-        // Output senza newline (es. barre di avanzamento con solo CR): non accumulare all'infinito.
-        // Si maschera l'intero buffer e si emette tutto tranne la coda lunga (segreto piu lungo - 1) byte:
-        // un segreto interrotto dal taglio ne resta fuori, cosi non viene mai emesso a pezzi.
+        // Output without newline (e.g. progress bars with CR only): do not accumulate forever.
+        // The whole buffer is masked and everything is emitted except the tail of (longest secret - 1) bytes:
+        // a secret cut by the split stays out of it, so it is never emitted in pieces.
         if (strlen($this->buffers[$key]) > self::MAX_MESSAGE_BYTES) {
             $masked = $this->mask($this->buffers[$key]);
             $cut = strlen($masked) - max(0, $this->masker->maxLength() - 1);
@@ -72,7 +72,7 @@ class DeployLogger
         }
     }
 
-    /** Emette le righe parziali ancora in buffer. */
+    /** Emits the partial lines still in the buffer. */
     public function flush(): void
     {
         $buffers = $this->buffers;
@@ -86,7 +86,7 @@ class DeployLogger
         }
     }
 
-    /** Maschera un testo con gli stessi segreti del log (da usare per gli `error` salvati sul run). */
+    /** Masks a text with the same secrets as the log (to be used for the `error` values saved on the run). */
     public function mask(string $text): string
     {
         return $this->masker->mask(mb_scrub($text));
@@ -94,7 +94,7 @@ class DeployLogger
 
     private function write(string $level, ?DeploymentHost $dh, string $message): void
     {
-        // Il mascheramento avviene dopo aver ricomposto la riga: un segreto spezzato tra due chunk viene coperto.
+        // Masking happens after the line is reassembled: a secret split across two chunks is covered.
         $message = $this->mask($message);
         if (strlen($message) > self::MAX_MESSAGE_BYTES) {
             $message = mb_strcut($message, 0, self::MAX_MESSAGE_BYTES).'…';
@@ -108,7 +108,7 @@ class DeployLogger
             'created_at' => now(),
         ]);
 
-        // La persistenza è autoritativa: un Reverb irraggiungibile non deve interrompere il deploy.
+        // Persistence is authoritative: an unreachable Reverb must not interrupt the deploy.
         try {
             DeployRunLogged::dispatch($this->run->id, $log);
         } catch (Throwable $e) {

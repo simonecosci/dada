@@ -1,379 +1,379 @@
 # dada — Design
 
-Data: 2026-10-29
-Stato: bozza da approvare
+Date: 2026-10-29
+Status: draft pending approval
 
-## 1. Cos'è e perché
+## 1. What it is and why
 
-**dada** è un'applicazione web open source per la Continuous Delivery di stack Docker su server propri. Si definiscono **progetti** (es. "wordpress") con **versioni**. Una versione si installa su un host di un **deployment**, e da lì l'app genera i file di deploy (`docker-compose.yml`, `.env`, `.env.<progetto>`, script di restart). L'app li carica via SSH/SFTP ed esegue i comandi remoti. Tutto avviene con job asincroni e log in tempo reale.
+**dada** is an open source web application for the Continuous Delivery of Docker stacks on your own servers. You define **projects** (e.g. "wordpress") with **versions**. A version is installed on a host of a **deployment**, and from there the app generates the deploy files (`docker-compose.yml`, `.env`, `.env.<project>`, restart scripts). The app uploads them via SSH/SFTP and runs the remote commands. Everything happens through asynchronous jobs with real-time logs.
 
-Il concetto viene da uno strumento interno proprietario (admink-deploy) che l'utente conosce bene. dada è una **riscrittura da zero, indipendente**:
+The concept comes from a proprietary internal tool (admink-deploy) that the user knows well. dada is an **independent rewrite from scratch**:
 
-- nessun legame con admink-deploy o admink-release;
-- nessuna sincronizzazione con sistemi esterni;
-- nessun codice riusato.
+- no ties to admink-deploy or admink-release;
+- no synchronization with external systems;
+- no reused code.
 
-I progetti nascono dentro dada.
+Projects are born inside dada.
 
-Del vecchio strumento si tengono i concetti buoni:
+The good concepts of the old tool are kept:
 
-- gerarchia deployment → host → installazioni;
-- copia modificabile per host;
-- variabili obbligatorie;
-- script di restart per servizio;
+- deployment → host → installations hierarchy;
+- editable per-host copy;
+- required variables;
+- per-service restart scripts;
 - compose/swarm.
 
-Si evitano questi suoi difetti:
+Its flaws are avoided:
 
-- yaml costruito a pezzi di stringa con segnaposto e regex;
-- fallback silenziosi su errori di parsing;
-- nomi cablati (`kplatform`, servizio `queue` speciale, chiavi `VERSION_*`);
-- password della webssh passata in query string;
-- servizi monolitici da 1000 righe.
+- yaml built from string fragments with placeholders and regexes;
+- silent fallbacks on parsing errors;
+- hard-wired names (`kplatform`, special `queue` service, `VERSION_*` keys);
+- webssh password passed in the query string;
+- monolithic 1000-line services.
 
-### Successo
+### Success
 
-Il primo traguardo è il **ciclo completo**:
+The first milestone is the **complete cycle**:
 
-1. creo un progetto e una versione;
-2. registro credenziale e host (anche dietro bastion);
-3. creo un deployment e installo la versione su un host;
-4. modifico variabili e yaml;
-5. genero i file;
-6. deploy con log live;
-7. restart dei servizi.
+1. I create a project and a version;
+2. I register a credential and a host (even behind a bastion);
+3. I create a deployment and install the version on a host;
+4. I edit variables and yaml;
+5. I generate the files;
+6. I deploy with a live log;
+7. I restart the services.
 
-Il resto (webssh, monitoring, manutenzioni, MCP) segue in fasi successive.
+The rest (webssh, monitoring, maintenance, MCP) follows in later phases.
 
-### Non-obiettivi
+### Non-goals
 
-- **Gestione VPN.** Il container di dada deve già stare in una rete che raggiunge gli host o i loro bastion.
-- **Multi-tenant (più organizzazioni isolate).** È un'installazione per un team.
-- **Build delle immagini dei progetti gestiti.** dada deploya immagini esistenti e non fa CI dei siti dei clienti.
-- **Kubernetes.** Solo Docker Compose e Docker Swarm.
-- **Canali di alert diversi dalla mail**, in questa versione.
+- **VPN management.** The dada container must already sit in a network that reaches the hosts or their bastions.
+- **Multi-tenancy (several isolated organizations).** It is one installation per team.
+- **Building the images of managed projects.** dada deploys existing images and does not do CI for customers' sites.
+- **Kubernetes.** Only Docker Compose and Docker Swarm.
+- **Alert channels other than email**, in this version.
 
-### Anti-obiettivi (fallimento anche se "funziona")
+### Anti-goals (failure even if it "works")
 
-- Generare yaml non valido senza dirlo. Ogni errore di parsing o validazione blocca la generazione con un messaggio chiaro.
-- Mostrare segreti a chi non ha il permesso, o scriverli nei log dei job.
-- Sovrascrivere le modifiche fatte su un'installazione in dada durante un aggiornamento di versione senza che l'utente le abbia viste e accettate. Il rilevamento di modifiche fatte a mano sui file del server, fuori da dada, è fuori dal primo traguardo: dada è la fonte di verità e il backup pre-deploy le conserva. _[scelta del designer]_
-- Due deploy concorrenti sullo stesso deployment.
+- Generating invalid yaml without saying so. Every parsing or validation error blocks generation with a clear message.
+- Showing secrets to people without permission, or writing them to job logs.
+- Overwriting changes made on an installation in dada during a version update without the user having seen and accepted them. Detecting manual changes made to files on the server, outside dada, is outside the first milestone: dada is the source of truth and the pre-deploy backup preserves them. _[designer's call]_
+- Two concurrent deploys on the same deployment.
 
-## 2. Utenti e permessi
+## 2. Users and permissions
 
-È un team con ruoli diversi. I permessi sono **per deployment**.
+It is a team with different roles. Permissions are **per deployment**.
 
-- **Admin** (globale): gestisce utenti, credenziali e host, crea deployment ed esegue ogni azione su ogni deployment.
-- **Ruoli per deployment**, assegnati utente × deployment. Ogni ruolo include quelli sotto.
+- **Admin** (global): manages users, credentials and hosts, creates deployments and performs every action on every deployment.
+- **Per-deployment roles**, assigned user × deployment. Each role includes those below it.
     - **Operator**:
-        - installa, aggiorna versioni, modifica le installazioni;
-        - genera e deploya, fa restart, lancia comandi del progetto;
-        - usa la webssh sugli host del deployment;
-        - **aggiunge e rimuove host** del deployment, scegliendoli tra gli host registrati;
-        - **gestisce i membri** del deployment, assegnando al massimo il ruolo Operator.
-    - **Viewer**: vede tutto (stato, file generati, log, registrazioni) tranne i valori dei segreti, che vede mascherati.
-- **Maintainer** (globale, permesso aggiuntivo): crea e modifica progetti e versioni del catalogo, inclusi i default dei segreti.
+        - installs, updates versions, edits installations;
+        - generates and deploys, restarts, runs project commands;
+        - uses webssh on the deployment's hosts;
+        - **adds and removes hosts** of the deployment, choosing them among the registered hosts;
+        - **manages the members** of the deployment, assigning at most the Operator role.
+    - **Viewer**: sees everything (status, generated files, logs, recordings) except secret values, which they see masked.
+- **Maintainer** (global, additional permission): creates and edits catalog projects and versions, including secret defaults.
 
-Creare un nuovo deployment è da Admin. _[scelta del designer: chi lo crea diventa Operator; se lo si vuole aperto a tutti è un flag di configurazione]_
+Creating a new deployment is an Admin action. _[designer's call: whoever creates it becomes Operator; opening it to everyone is a configuration flag]_
 
-**Segreti in chiaro**: Operator, Maintainer (sul catalogo) e Admin possono rivelarli con un pulsante "mostra". Ogni rivelazione viene registrata con utente, segreto e ora. Le API restituiscono i segreti mascherati; la rivelazione è un endpoint dedicato. L'MCP non li restituisce mai.
+**Plaintext secrets**: Operator, Maintainer (on the catalog) and Admin can reveal them with a "show" button. Every reveal is recorded with user, secret and time. The APIs return secrets masked; revealing is a dedicated endpoint. The MCP never returns them.
 
-Un utente senza ruolo su un deployment non lo vede.
+A user without a role on a deployment does not see it.
 
-I token API/MCP (Sanctum personal access token) ereditano i permessi del loro utente. Al token si possono restringere le _abilities_, per esempio sola lettura.
+API/MCP tokens (Sanctum personal access tokens) inherit the permissions of their user. The token's _abilities_ can be restricted, for example to read-only.
 
-## 3. Modello di dominio
+## 3. Domain model
 
-### Catalogo
+### Catalog
 
 **Project**
 
-- nome, slug (usato nei nomi file: `.env.<slug>`, `<slug>.sh`), descrizione, icona opzionale.
+- name, slug (used in file names: `.env.<slug>`, `<slug>.sh`), description, optional icon.
 
 **ProjectVersion**
 
-- appartiene a un Project;
-- `version` (stringa libera, es. `1.2.0`), note di rilascio;
-- **services**: la definizione compose dei servizi del progetto, salvata strutturata (JSON/array, editata come YAML nell'editor ma validata e parsata al salvataggio);
-- top-level aggiuntivi opzionali: volumes, networks, configs;
-- **variables**: lista di variabili;
-- **commands**: lista di comandi predefiniti;
-- stato: `draft` / `published`. Solo le versioni pubblicate si installano. _[scelta del designer]_
+- belongs to a Project;
+- `version` (free string, e.g. `1.2.0`), release notes;
+- **services**: the compose definition of the project's services, stored structured (JSON/array, edited as YAML in the editor but validated and parsed on save);
+- optional additional top-levels: volumes, networks, configs;
+- **variables**: list of variables;
+- **commands**: list of predefined commands;
+- state: `draft` / `published`. Only published versions can be installed. _[designer's call]_
 
-Una versione pubblicata è immutabile; per cambiarla si clona. _[scelta del designer, serve per rendere affidabile il diff di aggiornamento]_
+A published version is immutable; to change it you clone it. _[designer's call, needed to make the update diff reliable]_
 
-**Clona versione** crea una nuova versione `draft` che copia services, variabili e comandi della sorgente.
+**Clone version** creates a new `draft` version that copies the source's services, variables and commands.
 
-**Variable** (dentro una versione o un'installazione)
+**Variable** (inside a version or an installation)
 
 - `key`, `default`, `description`;
-- `required` (bool): il deploy è bloccato se il valore effettivo è vuoto;
-- `secret` (bool): cifrato a riposo, mascherato in UI/API/log;
+- `required` (bool): the deploy is blocked if the effective value is empty;
+- `secret` (bool): encrypted at rest, masked in UI/API/logs;
 - `scope`:
-    - `container`: va in `.env.<slug>`, cioè dentro il container tramite `env_file`;
-    - `compose`: va in `.env`, per l'interpolazione `${VAR}` nello yaml;
-    - `host-global`: va in `.env` ed è condivisa tra le installazioni dell'host.
+    - `container`: goes in `.env.<slug>`, i.e. inside the container via `env_file`;
+    - `compose`: goes in `.env`, for `${VAR}` interpolation in the yaml;
+    - `host-global`: goes in `.env` and is shared among the host's installations.
 
-**Command** (dentro una versione o un'installazione)
+**Command** (inside a version or an installation)
 
-- nome, descrizione;
-- `target`: `service:<nome>`, eseguito con `docker compose exec` / `docker exec` sul task, oppure `host`, eseguito nella cartella di installazione;
-- `command` (stringa);
-- `dangerous` (bool): richiede conferma esplicita in UI e in MCP.
+- name, description;
+- `target`: `service:<name>`, run with `docker compose exec` / `docker exec` on the task, or `host`, run in the installation folder;
+- `command` (string);
+- `dangerous` (bool): requires explicit confirmation in the UI and in the MCP.
 
-### Infrastruttura
+### Infrastructure
 
 **Credential**
 
-- nome, tipo `password` | `ssh-key` (chiave privata + passphrase opzionale) | `registry` (URL del registry, username, password/token), username opzionale;
-- dati cifrati con cast `encrypted` di Laravel (APP_KEY);
-- mai restituiti in chiaro dalle API.
+- name, type `password` | `ssh-key` (private key + optional passphrase) | `registry` (registry URL, username, password/token), optional username;
+- data encrypted with Laravel's `encrypted` cast (APP_KEY);
+- never returned in plaintext by the APIs.
 
 **Host**
 
-- nome, hostname/IP, porta, username, credential;
-- `jump_host_id` opzionale (FK su Host). I salti si possono concatenare; sono vietati i cicli;
-- `sudo` (comando prefisso, es. `sudo -n`, vuoto = nessuno);
-- fingerprint della chiave host: memorizzata al primo collegamento (TOFU), poi verificata; se cambia, la connessione fallisce con un errore esplicito;
-- stato: raggiungibile/irraggiungibile, ultimo check, info raccolte (OS, versione docker, CPU, RAM, disco).
+- name, hostname/IP, port, username, credential;
+- optional `jump_host_id` (FK on Host). Jumps can be chained; cycles are forbidden;
+- `sudo` (prefix command, e.g. `sudo -n`, empty = none);
+- host key fingerprint: stored on first connection (TOFU), then verified; if it changes, the connection fails with an explicit error;
+- status: reachable/unreachable, last check, collected info (OS, docker version, CPU, RAM, disk).
 
-### Installazioni
+### Installations
 
 **Deployment**
 
-- nome, descrizione, ambiente (etichetta libera, es. production/staging);
-- membri con ruolo.
+- name, description, environment (free label, e.g. production/staging);
+- members with role.
 
 **DeploymentHost**
 
-- un Host dentro un Deployment;
-- `path` (cartella di installazione), `orchestrator`: `compose` | `swarm`;
-- `stack_name` (per swarm, default = slug del deployment);
-- **credenziali registry** associate (zero o più Credential di tipo `registry`);
-- variabili `host-global` dell'host (con lo stesso schema Variable);
-- **template di compose** opzionale: top-level networks/volumes condivisi da tutte le installazioni dell'host;
-- lo stesso Host fisico può comparire in più deployment con path diversi.
+- a Host inside a Deployment;
+- `path` (installation folder), `orchestrator`: `compose` | `swarm`;
+- `stack_name` (for swarm, default = deployment slug);
+- associated **registry credentials** (zero or more `registry`-type Credentials);
+- the host's `host-global` variables (with the same Variable schema);
+- optional **compose template**: top-level networks/volumes shared by all the host's installations;
+- the same physical Host can appear in several deployments with different paths.
 
 **Installation**
 
-- una ProjectVersion installata su un DeploymentHost: è una **copia completa e modificabile** di services, variabili e comandi;
-- riferimento alla ProjectVersion d'origine (per il diff di aggiornamento);
-- `slug` proprio dell'installazione, con default lo slug del progetto e unico sul DeploymentHost. I nomi file `.env.<slug>` e `<slug>.sh` usano questo slug, quindi lo stesso progetto si può installare due volte sullo stesso host (es. due wordpress), purché i nomi dei servizi non collidano. _[scelta del designer]_
-- `order` (ordine nel restart);
-- per ogni variabile, il valore impostato sull'installazione oppure "usa il default". Serve per distinguere "lasciato al default" da "modificato".
+- a ProjectVersion installed on a DeploymentHost: it is a **complete, editable copy** of services, variables and commands;
+- reference to the originating ProjectVersion (for the update diff);
+- the installation's own `slug`, defaulting to the project slug and unique on the DeploymentHost. The `.env.<slug>` and `<slug>.sh` file names use this slug, so the same project can be installed twice on the same host (e.g. two wordpress), as long as service names do not collide. _[designer's call]_
+- `order` (order in the restart);
+- for each variable, the value set on the installation or "use the default". This distinguishes "left at default" from "modified".
 
-## 4. Generazione dei file
+## 4. File generation
 
-Per ogni DeploymentHost, dada genera in memoria un insieme di file. Li mostra in anteprima (con segreti mascherati per chi non può vederli) e li carica al deploy.
+For each DeploymentHost, dada generates a set of files in memory. It shows them in a preview (with secrets masked for those who cannot see them) and uploads them at deploy time.
 
 ### docker-compose.yml
 
-È costruito **come struttura dati** e serializzato una volta sola con `symfony/yaml`:
+It is built **as a data structure** and serialized once with `symfony/yaml`:
 
-1. si parte dal template dell'host (networks/volumes condivisi);
-2. si uniscono i services di ogni installazione in `order`. Una collisione di nomi servizio tra installazioni è un errore bloccante;
-3. a ogni servizio con variabili `container` si aggiunge `env_file: .env.<slug>`;
-4. si uniscono i top-level volumes/networks delle installazioni;
-5. si valida il risultato: struttura compose minima e riferimenti a network/volumi dichiarati. Opzionale: `docker compose config -q` eseguito sull'host prima dell'up.
+1. start from the host template (shared networks/volumes);
+2. merge the services of each installation in `order`. A service name collision between installations is a blocking error;
+3. add `env_file: .env.<slug>` to every service with `container` variables;
+4. merge the installations' top-level volumes/networks;
+5. validate the result: minimal compose structure and references to declared networks/volumes. Optional: `docker compose config -q` run on the host before the up.
 
-Non c'è nessun segnaposto testuale: le variabili restano `${VAR}` nel yaml e sono risolte da Docker leggendo `.env`.
+There are no textual placeholders: variables stay `${VAR}` in the yaml and are resolved by Docker reading `.env`.
 
 ### .env
 
-Contiene:
+It contains:
 
-- tutte le variabili `compose` di tutte le installazioni dell'host;
-- le `host-global`.
+- all the `compose` variables of all the host's installations;
+- the `host-global` ones.
 
-Un conflitto di chiave tra installazioni con valori diversi è un errore bloccante, che l'utente risolve spostando la variabile a `host-global`.
+A key conflict between installations with different values is a blocking error, which the user resolves by moving the variable to `host-global`.
 
-**Variabili `host-global` dichiarate da una versione** _[scelta del designer]_:
+**`host-global` variables declared by a version** _[designer's call]_:
 
-- **All'installazione**: se la chiave non esiste ancora sul DeploymentHost, viene creata lì con default e flag della versione. Se esiste già, si tiene quella dell'host e si segnala la differenza di default o di flag. `required` e `secret` si sommano in OR.
-- **Dopo**: la variabile vive sull'host e non sull'installazione.
-- **Rimozione o aggiornamento dell'installazione**: la variabile non viene cancellata, ma segnalata come "non più usata" se nessuna installazione la dichiara.
+- **At installation**: if the key does not yet exist on the DeploymentHost, it is created there with the version's default and flags. If it already exists, the host's one is kept and the difference in default or flags is reported. `required` and `secret` are combined with OR.
+- **Afterwards**: the variable lives on the host and not on the installation.
+- **Removal or update of the installation**: the variable is not deleted, but flagged as "no longer used" if no installation declares it.
 
 ### .env.<slug>
 
-Uno per installazione, con le variabili `container`.
+One per installation, with the `container` variables.
 
-### Segreti
+### Secrets
 
-Nella prima versione i segreti finiscono nei file `.env*` sull'host, con permessi `600`, owner l'utente di deploy. _[scelta del designer: è semplice e compatibile con qualsiasi immagine]_
+In the first version secrets end up in the `.env*` files on the host, with `600` permissions, owned by the deploy user. _[designer's call: it is simple and compatible with any image]_
 
-I Docker secrets (`/run/secrets`, `*_FILE`) sono un'evoluzione futura, fuori dal primo traguardo.
+Docker secrets (`/run/secrets`, `*_FILE`) are a future evolution, outside the first milestone.
 
-### Script
+### Scripts
 
-Sono generati da template Blade.
+They are generated from Blade templates.
 
-- **`<slug>.sh`**: uno per installazione. Uso: `./<slug>.sh start|stop|restart|status [servizio|all]`.
-    - **compose**: `docker compose up -d <servizi>` / `stop` + `rm -f` / `ps`.
+- **`<slug>.sh`**: one per installation. Usage: `./<slug>.sh start|stop|restart|status [service|all]`.
+    - **compose**: `docker compose up -d <services>` / `stop` + `rm -f` / `ps`.
     - **swarm**:
-        - `start` / `restart`: `docker service update --force <stack>_<servizio>`, oppure scale a N repliche se il servizio era stato fermato;
-        - `stop`: `docker service scale <stack>_<servizio>=0`;
+        - `start` / `restart`: `docker service update --force <stack>_<service>`, or scale to N replicas if the service had been stopped;
+        - `stop`: `docker service scale <stack>_<service>=0`;
         - `status`: `docker service ps`.
-        - Il numero di repliche da ripristinare viene dalla definizione del servizio.
-    - I servizi marcati come _init_ (proprietà del servizio nella versione, es. migrazioni one-shot) vengono eseguiti e attesi prima degli altri in `start`/`restart`. Un exit code diverso da 0 interrompe lo script.
+        - The number of replicas to restore comes from the service definition.
+    - Services marked as _init_ (a service property in the version, e.g. one-shot migrations) are run and awaited before the others in `start`/`restart`. A non-zero exit code aborts the script.
         - In compose: `docker compose run --rm <init>`.
-        - In swarm: `docker run --rm` sul manager, con la stessa immagine, gli stessi env file e la rete del servizio (rete overlay `attachable`).
-        - Gli init non fanno parte dello stack.
-- **`restart.sh`**: unico per host. Uso: `./restart.sh start|stop|restart|status`.
-    - In **compose** chiama in `order` gli script delle installazioni.
-    - In **swarm** carica `.env` (perché `stack deploy` non lo legge da solo), esegue gli init, poi `docker stack deploy -c docker-compose.yml --with-registry-auth --prune <stack>`.
-    - Non distrugge e ricrea lo swarm. L'inizializzazione dello swarm (`docker swarm init`) è un'azione separata ed esplicita in UI.
+        - In swarm: `docker run --rm` on the manager, with the same image, the same env files and the service's network (`attachable` overlay network).
+        - Inits are not part of the stack.
+- **`restart.sh`**: single per host. Usage: `./restart.sh start|stop|restart|status`.
+    - In **compose** it calls the installations' scripts in `order`.
+    - In **swarm** it loads `.env` (because `stack deploy` does not read it by itself), runs the inits, then `docker stack deploy -c docker-compose.yml --with-registry-auth --prune <stack>`.
+    - It does not destroy and recreate the swarm. Swarm initialization (`docker swarm init`) is a separate, explicit action in the UI.
 
-### Swarm: topologia
+### Swarm: topology
 
-Ogni DeploymentHost in modalità swarm è un **manager**. dada gli invia i file e lancia lì lo stack. Eventuali worker del cluster non sono gestiti da dada e non ricevono file. Non esiste un oggetto "cluster": un deployment swarm con più host significa più manager, ognuno con il proprio stack. _[interpretazione della risposta "ogni host è un manager"]_
+Every DeploymentHost in swarm mode is a **manager**. dada sends it the files and launches the stack there. Any workers of the cluster are not managed by dada and do not receive files. There is no "cluster" object: a swarm deployment with several hosts means several managers, each with its own stack. _[interpretation of the answer "every host is a manager"]_
 
-### Installazione rimossa
+### Removed installation
 
-Quando si rimuove un'installazione da un DeploymentHost, la scheda del deploy successivo mostra un avviso esplicito: "verranno fermati e rimossi i servizi X, Y". Al deploy confermato succede questo:
+When an installation is removed from a DeploymentHost, the next deploy's screen shows an explicit warning: "services X, Y will be stopped and removed". On the confirmed deploy this happens:
 
 - **compose**: `up --remove-orphans`;
 - **swarm**: `stack deploy --prune`;
-- vengono cancellati `.env.<slug>` e `<slug>.sh`.
+- `.env.<slug>` and `<slug>.sh` are deleted.
 
-_[scelta del designer]_
+_[designer's call]_
 
-## 5. Aggiornamento di versione
+## 5. Version update
 
-Un'installazione su `wordpress 1.0` viene portata a `1.1`. dada mostra:
+An installation on `wordpress 1.0` is brought to `1.1`. dada shows:
 
-- **Variabili**:
-    - **aggiunte**: saranno aggiunte con il loro default;
-    - **rimosse**: saranno rimosse;
-    - **default cambiato**: se sull'installazione la variabile era "usa il default" prende il nuovo default; se era stata impostata, resta il valore impostato. In entrambi i casi la differenza viene mostrata.
-    - Il valore impostato (override) non viene mai toccato.
-- **Services/yaml e comandi**: vista affiancata (Monaco diff editor). A sinistra c'è l'installazione corrente, a destra la nuova versione. L'utente sceglie blocco per blocco e può ritoccare a mano il risultato.
-- **Il motore di diff è a tre vie** _[scelta del designer]_: base = versione d'origine, locale = installazione, remoto = nuova versione. Questo serve a capire quali differenze sono modifiche locali e quali novità della versione. In UI lo si usa per evidenziare i blocchi; la scelta resta all'utente. L'MCP lo usa per decidere se l'aggiornamento è "senza conflitti": nessun blocco modificato sia localmente sia nella nuova versione.
-- Si conferma o si annulla. Non si applica nulla in automatico.
+- **Variables**:
+    - **added**: they will be added with their default;
+    - **removed**: they will be removed;
+    - **default changed**: if on the installation the variable was "use the default" it takes the new default; if it had been set, the set value stays. In both cases the difference is shown.
+    - The set value (override) is never touched.
+- **Services/yaml and commands**: side-by-side view (Monaco diff editor). On the left is the current installation, on the right the new version. The user chooses block by block and can hand-tweak the result.
+- **The diff engine is three-way** _[designer's call]_: base = originating version, local = installation, remote = new version. This tells which differences are local changes and which are news from the version. In the UI it is used to highlight blocks; the choice stays with the user. The MCP uses it to decide whether the update is "conflict-free": no block modified both locally and in the new version.
+- Confirm or cancel. Nothing is applied automatically.
 
-L'aggiornamento cambia solo l'installazione nel DB. Il deploy resta un'azione separata.
+The update changes only the installation in the DB. The deploy remains a separate action.
 
 ## 6. Deploy
 
-È un job asincrono (`DeployJob`) per deployment, eseguibile su tutti gli host o su uno solo.
+It is an asynchronous job (`DeployJob`) per deployment, runnable on all hosts or on just one.
 
-- **Lock**: un lock atomico (Redis) per deployment impedisce due job concorrenti. Il lock ha un TTL, così un worker morto non lo lascia appeso per sempre.
+- **Lock**: an atomic lock (Redis) per deployment prevents two concurrent jobs. The lock has a TTL, so a dead worker does not leave it hanging forever.
 
-Per ogni host, in sequenza:
+For each host, in sequence:
 
-1. connessione SSH (attraverso i jump host);
-2. controllo delle precondizioni: variabili obbligatorie valorizzate, generazione senza errori, spazio disco sufficiente (soglia configurabile);
-3. creazione della cartella `path`;
-4. backup dei file correnti in `path/.dada/backups/<timestamp>/`, con retention configurabile;
-5. upload via SFTP di tutti i file generati, poi permessi (`600` per `.env*`, `+x` per gli script);
-6. `docker login` su ogni registry associato al DeploymentHost, con la password passata via stdin e mai sulla riga di comando; poi `docker compose pull` / pull delle immagini (opzionale, attivo di default);
-7. `./restart.sh restart` (opzionale, attivo di default).
+1. SSH connection (through the jump hosts);
+2. preconditions check: required variables set, generation without errors, enough disk space (configurable threshold);
+3. creation of the `path` folder;
+4. backup of the current files to `path/.dada/backups/<timestamp>/`, with configurable retention;
+5. SFTP upload of all generated files, then permissions (`600` for `.env*`, `+x` for scripts);
+6. `docker login` on every registry associated with the DeploymentHost, with the password passed via stdin and never on the command line; then `docker compose pull` / image pull (optional, on by default);
+7. `./restart.sh restart` (optional, on by default).
 
-Questi passi valgono per tutto il job:
+These points apply to the whole job:
 
-- **Log**: ogni passo e ogni riga di output remoto vengono trasmessi live via Reverb sul canale privato del job e salvati nello storico. I segreti vengono mascherati nell'output.
-- **Esito**: successo o fallimento per host e complessivo, con storico consultabile.
-- **Snapshot**: ogni deploy riuscito salva nel DB uno snapshot dello stato delle installazioni dell'host (versione d'origine, services, variabili, comandi) e dei file generati.
-- **Rollback** a un deploy precedente: è un'azione esplicita, non automatica. Ripristina sia lo snapshot nel DB sia i file sull'host (upload + restart), così il deploy successivo non riapplica ciò che si è annullato. _[scelta del designer; lo snapshot serve dalla fase 1, il rollback da UI arriva in fase 2]_
+- **Log**: every step and every line of remote output is streamed live via Reverb on the job's private channel and saved to the history. Secrets are masked in the output.
+- **Outcome**: success or failure per host and overall, with a browsable history.
+- **Snapshot**: every successful deploy saves to the DB a snapshot of the state of the host's installations (originating version, services, variables, commands) and of the generated files.
+- **Rollback** to a previous deploy: it is an explicit action, not automatic. It restores both the snapshot in the DB and the files on the host (upload + restart), so the next deploy does not reapply what was undone. _[designer's call; the snapshot is needed from phase 1, the UI rollback arrives in phase 2]_
 
-Altri job: Restart (host o singolo servizio), RunCommand (comando di progetto), HostCheck (raccolta info e raggiungibilità), Prune.
+Other jobs: Restart (host or single service), RunCommand (project command), HostCheck (info and reachability collection), Prune.
 
-Il deploy si può programmare a una data e ora (scheduler).
+The deploy can be scheduled at a date and time (scheduler).
 
-## 7. WebSSH (fase successiva)
+## 7. WebSSH (later phase)
 
-- È un terminale nel browser (xterm.js) verso un host, attraverso i jump host.
-- La sessione SSH è aperta lato server con phpseclib; i byte passano su un canale websocket. _[scelta del designer: il modo esatto (processo dedicato per sessione, server ws custom accanto a Reverb, o sidecar) è lasciato al builder, purché le credenziali non lascino mai il server]_
-- Accesso: Operator del deployment che contiene l'host, oppure Admin.
-- **Registrazione completa** di ogni sessione: output con i tempi (formato asciicast v2) più input, salvati e riproducibili da UI con un player. Si registrano anche utente, host, inizio e fine.
-- Retention configurabile.
+- It is a terminal in the browser (xterm.js) to a host, through the jump hosts.
+- The SSH session is opened server-side with phpseclib; the bytes pass over a websocket channel. _[designer's call: the exact way (dedicated process per session, custom ws server next to Reverb, or sidecar) is left to the builder, as long as credentials never leave the server]_
+- Access: Operator of the deployment containing the host, or Admin.
+- **Full recording** of every session: output with timing (asciicast v2 format) plus input, saved and replayable from the UI with a player. User, host, start and end are also recorded.
+- Configurable retention.
 
-## 8. Scheduler (fase successiva)
+## 8. Scheduler (later phase)
 
-- **Pulizia**:
-    - prune delle immagini docker inutilizzate sugli host;
-    - backup di deploy più vecchi della retention;
-    - log dei job e registrazioni ssh più vecchi di N giorni.
-- **Monitoring**: controllo periodico di:
-    - host raggiungibile;
-    - container/servizi fermi o in restart loop;
-    - disco sopra soglia;
-    - check HTTP configurabili per installazione (URL + status atteso);
-    - certificati TLS in scadenza (dagli URL dei check HTTP).
-- **Alerting via mail** ai membri del deployment, con ruolo configurabile. Si manda un avviso all'apertura e uno alla risoluzione, senza ripetizioni a ogni controllo. Gli alert aperti sono visibili in UI.
-- **Manutenzioni**: si assegnano a un utente, su un deployment o un host, con data e descrizione. 3 giorni prima l'assegnatario riceve una mail di promemoria (il numero di giorni è configurabile). Stati: pianificata / fatta / annullata.
+- **Cleanup**:
+    - prune of unused docker images on the hosts;
+    - deploy backups older than the retention;
+    - job logs and ssh recordings older than N days.
+- **Monitoring**: periodic check of:
+    - host reachable;
+    - stopped containers/services or ones in a restart loop;
+    - disk above threshold;
+    - configurable HTTP checks per installation (URL + expected status);
+    - expiring TLS certificates (from the HTTP check URLs).
+- **Email alerting** to the deployment's members, with a configurable role. One notice is sent on opening and one on resolution, with no repeats at every check. Open alerts are visible in the UI.
+- **Maintenance**: assigned to a user, on a deployment or a host, with date and description. 3 days before, the assignee receives a reminder email (the number of days is configurable). States: planned / done / cancelled.
 
-## 9. Server MCP (fase successiva)
+## 9. MCP server (later phase)
 
-Usa `laravel/mcp` ed è esposto via HTTP dall'app. Si autentica con un token personale Sanctum e applica gli stessi permessi per deployment.
+It uses `laravel/mcp` and is exposed over HTTP by the app. It authenticates with a Sanctum personal token and applies the same per-deployment permissions.
 
-- **Lettura e diagnosi**:
-    - elenca deployment, host, installazioni, progetti e versioni;
-    - stato di container e servizi;
-    - log di un servizio (tail);
-    - esito degli ultimi job;
-    - alert aperti;
-    - file generati, con segreti sempre mascherati.
-- **Azioni**:
+- **Reading and diagnosis**:
+    - lists deployments, hosts, installations, projects and versions;
+    - status of containers and services;
+    - log of a service (tail);
+    - outcome of the latest jobs;
+    - open alerts;
+    - generated files, with secrets always masked.
+- **Actions**:
     - deploy;
-    - aggiornamento di versione: solo se senza conflitti yaml, altrimenti restituisce il diff e rimanda alla UI;
+    - version update: only if without yaml conflicts, otherwise it returns the diff and refers to the UI;
     - restart;
-    - lancio di comandi di progetto.
-- Le azioni distruttive (stop, comandi `dangerous`) richiedono un parametro di conferma esplicito.
+    - running project commands.
+- Destructive actions (stop, `dangerous` commands) require an explicit confirmation parameter.
 
-Le azioni passano dagli stessi service/policy della UI, senza logica duplicata.
+Actions go through the same services/policies as the UI, with no duplicated logic.
 
-## 10. Stack e confezionamento
+## 10. Stack and packaging
 
-Lo stack è deciso così.
+The stack is decided as follows.
 
 - **Backend**:
     - Laravel 13, PHP 8.5;
-    - PostgreSQL di default (MySQL/MariaDB devono funzionare: niente SQL specifico);
-    - Redis per code, cache, lock;
-    - Horizon per i worker;
-    - Reverb per i websocket;
-    - phpseclib 3 per SSH/SFTP;
+    - PostgreSQL by default (MySQL/MariaDB must work: no specific SQL);
+    - Redis for queues, cache, locks;
+    - Horizon for workers;
+    - Reverb for websockets;
+    - phpseclib 3 for SSH/SFTP;
     - symfony/yaml;
     - laravel/mcp;
     - Sanctum.
 - **Frontend**:
     - Vue 3 + TypeScript + Inertia + Vite;
-    - Tailwind + PrimeVue _[scelta del designer]_;
+    - Tailwind + PrimeVue _[designer's call]_;
     - xterm.js;
-    - Monaco editor (yaml e diff).
-- **Autenticazione**: login a sessione, 2FA TOTP opzionale _[scelta del designer]_.
-- **Test**: Pest. Unit test sulla generazione (input → file attesi, snapshot), sul diff di aggiornamento, sulle policy. Feature test sulle API. Le operazioni SSH sono dietro un'interfaccia con un fake per i test.
-- **Immagine Docker dell'app**:
-    - unica immagine nginx + PHP 8.5-fpm con supervisord;
-    - una variabile d'ambiente sceglie il ruolo del container: `web` | `worker` | `scheduler` | `reverb` (oppure `all` per installazioni piccole);
-    - include un `docker-compose.yml` di esempio con app, postgres e redis.
+    - Monaco editor (yaml and diff).
+- **Authentication**: session login, optional TOTP 2FA _[designer's call]_.
+- **Tests**: Pest. Unit tests on generation (input → expected files, snapshot), on the update diff, on policies. Feature tests on the APIs. SSH operations sit behind an interface with a fake for tests.
+- **App Docker image**:
+    - single nginx + PHP 8.5-fpm image with supervisord;
+    - an environment variable chooses the container's role: `web` | `worker` | `scheduler` | `reverb` (or `all` for small installations);
+    - includes a sample `docker-compose.yml` with app, postgres and redis.
 - **CI (GitHub Actions)**:
-    - lint (Pint, ESLint) e test Pest su push e PR;
-    - build multi-arch (amd64/arm64) e push su GitHub Container Registry `ghcr.io/<owner>/dada` con tag `latest` (main), `sha-<short>`, e semver sui tag git.
-- **Licenza**: quella già presente nel repo.
+    - lint (Pint, ESLint) and Pest tests on push and PR;
+    - multi-arch build (amd64/arm64) and push to GitHub Container Registry `ghcr.io/<owner>/dada` with tags `latest` (main), `sha-<short>`, and semver on git tags.
+- **License**: the one already in the repo.
 
-## 11. Fasi
+## 11. Phases
 
-1. **Fondamenta e ciclo completo** (primo traguardo):
-    - auth e utenti, ruoli per deployment;
-    - credenziali, host con jump host e TOFU;
-    - progetti, versioni (clona, pubblica), variabili, comandi;
-    - deployment, host del deployment, installazioni;
-    - generazione file con anteprima;
-    - DeployJob con lock, backup, log live via Reverb;
+1. **Foundations and complete cycle** (first milestone):
+    - auth and users, per-deployment roles;
+    - credentials, hosts with jump host and TOFU;
+    - projects, versions (clone, publish), variables, commands;
+    - deployments, deployment hosts, installations;
+    - file generation with preview;
+    - DeployJob with lock, backup, live log via Reverb;
     - restart;
-    - immagine docker + CI;
-    - test Pest.
-2. **Aggiornamento di versione** con diff variabili e merge affiancato yaml; rollback da backup; comandi di progetto da UI; deploy programmati.
-3. **WebSSH** con registrazione e player.
-4. **Scheduler**: pulizia, monitoring, alerting mail, manutenzioni con promemoria.
-5. **Server MCP**.
+    - docker image + CI;
+    - Pest tests.
+2. **Version update** with variable diff and side-by-side yaml merge; rollback from backup; project commands from the UI; scheduled deploys.
+3. **WebSSH** with recording and player.
+4. **Scheduler**: cleanup, monitoring, email alerting, maintenance with reminders.
+5. **MCP server**.
 
-## 12. Lasciato al builder
+## 12. Left to the builder
 
-- Schema DB dettagliato, nomi delle tabelle, struttura delle cartelle del codice.
-- Il meccanismo tecnico della webssh (vedi §7), con i vincoli dichiarati.
-- Il layout UI e la navigazione, purché le funzioni descritte ci siano.
-- Il formato esatto degli script bash, purché rispetti l'interfaccia `start|stop|restart|status [servizio|all]`.
-- Gli intervalli di default dello scheduler e le soglie.
+- Detailed DB schema, table names, code folder structure.
+- The technical mechanism of webssh (see §7), with the stated constraints.
+- The UI layout and navigation, as long as the described functions are there.
+- The exact format of the bash scripts, as long as it respects the `start|stop|restart|status [service|all]` interface.
+- The scheduler's default intervals and thresholds.

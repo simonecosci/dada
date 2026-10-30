@@ -37,7 +37,7 @@ function merge(incoming: LogLine[]): void {
 
 useEcho<LogLine>(`deploy-runs.${props.runId}`, '.log', (line) => merge([line]));
 
-// Reload parziali (catch-up, fine run): unisce le righe nuove senza duplicati.
+// Partial reloads (catch-up, end of run): merges new lines without duplicates.
 watch(
     () => props.initialLogs,
     (logs) => merge(logs),
@@ -91,7 +91,7 @@ const levelClass: Record<LogLine['level'], string> = {
                 class="rounded-md border border-input bg-background px-2 py-1 text-sm"
                 data-test="log-host-filter"
             >
-                <option value="all">Tutti</option>
+                <option value="all">All</option>
                 <option
                     v-for="h in hosts"
                     :key="h.deployment_host_id"
@@ -116,7 +116,7 @@ const levelClass: Record<LogLine['level'], string> = {
                 {{ l.message }}
             </div>
             <p v-if="visible.length === 0" class="text-muted-foreground">
-                Nessun log.
+                No logs.
             </p>
         </div>
     </div>

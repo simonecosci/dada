@@ -11,7 +11,7 @@ final class RemoteCommandFailed extends RuntimeException
         $output = trim($r->output);
 
         return new self(
-            "Comando remoto fallito (exit {$r->exitCode}): {$command}".($output !== '' ? "\n{$output}" : ''),
+            "Remote command failed (exit {$r->exitCode}): {$command}".($output !== '' ? "\n{$output}" : ''),
             $r->exitCode,
         );
     }

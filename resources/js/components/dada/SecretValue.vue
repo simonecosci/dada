@@ -40,7 +40,7 @@ async function reveal() {
 
         revealed.value = (await response.json()).value ?? '';
     } catch {
-        error.value = 'Impossibile mostrare il valore.';
+        error.value = 'Unable to show the value.';
     } finally {
         loading.value = false;
     }
@@ -65,7 +65,7 @@ async function reveal() {
             :disabled="loading"
             @click="reveal"
         >
-            Mostra
+            Show
         </Button>
         <Button
             v-else
@@ -74,7 +74,7 @@ async function reveal() {
             size="sm"
             @click="revealed = null"
         >
-            Nascondi
+            Hide
         </Button>
         <InputError :message="error" />
     </div>

@@ -1,6 +1,6 @@
 export type VariableScope = 'container' | 'compose' | 'host-global';
 
-/** Output di VariableData::forClient, con default/value modificabili. */
+/** Output of VariableData::forClient, with editable default/value. */
 export type VariableRow = {
     id?: number | null;
     key: string;
@@ -32,9 +32,9 @@ export function newVariableRow(
 }
 
 /**
- * Costruisce il payload per VariableSync. Per i segreti non toccati
- * (valore null) le chiavi default/value vengono omesse: il server mantiene
- * il segreto memorizzato solo se la chiave è assente.
+ * Builds the payload for VariableSync. For untouched secrets
+ * (null value) the default/value keys are omitted: the server keeps
+ * the stored secret only if the key is absent.
  */
 export function variablesPayload(
     rows: VariableRow[],

@@ -26,8 +26,8 @@ class OpenSshShellFactory implements RemoteShellFactory
     }
 
     /**
-     * Rivalida la catena al momento della connessione: credenziali e host possono
-     * essere stati modificati dopo il salvataggio.
+     * Revalidates the chain at connection time: credentials and hosts may
+     * have been modified after saving.
      *
      * @param  list<Host>  $chain
      */
@@ -40,16 +40,16 @@ class OpenSshShellFactory implements RemoteShellFactory
             $credential = $host->credential;
 
             if ($credential === null) {
-                throw new RemoteCommandFailed("L'host \"{$host->name}\" non ha una credenziale.");
+                throw new RemoteCommandFailed("Host \"{$host->name}\" has no credential.");
             }
             if ($credential->type === CredentialType::Registry) {
-                throw new RemoteCommandFailed("L'host \"{$host->name}\" usa una credenziale registry, non usabile per SSH.");
+                throw new RemoteCommandFailed("Host \"{$host->name}\" uses a registry credential, which cannot be used for SSH.");
             }
             if ($i !== $last && $credential->type !== CredentialType::SshKey) {
-                throw new RemoteCommandFailed("Il jump host \"{$host->name}\" deve usare una credenziale ssh-key.");
+                throw new RemoteCommandFailed("The jump host \"{$host->name}\" must use an ssh-key credential.");
             }
             if ($credential->type === CredentialType::SshKey && filled($credential->passphrase)) {
-                throw new RemoteCommandFailed("La chiave dell'host \"{$host->name}\" ha una passphrase: chiavi con passphrase non supportate in questa versione.");
+                throw new RemoteCommandFailed("The key of host \"{$host->name}\" has a passphrase: keys with a passphrase are not supported in this version.");
             }
         }
     }

@@ -2,6 +2,14 @@
 
 return [
 
+    // Primo admin, creato da AdminSeeder solo se non esiste ancora nessun admin.
+    // Senza password ne viene generata una e stampata nel log del container init.
+    'admin' => [
+        'email' => env('DADA_ADMIN_EMAIL') ?: null,
+        'name' => env('DADA_ADMIN_NAME') ?: null,
+        'password' => env('DADA_ADMIN_PASSWORD') ?: null,
+    ],
+
     'deploy' => [
         // Spazio libero minimo (MB) richiesto sull'host prima di un deploy.
         'min_free_mb' => (int) env('DADA_DEPLOY_MIN_FREE_MB', 1024),

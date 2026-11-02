@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Deploy\DeployLogger;
+use App\Deploy\PrivilegeCheck;
 use App\Deploy\RemoteSteps;
 use App\Jobs\Concerns\RunsWithDeploymentLock;
 use App\Models\DeploymentHost;
@@ -76,7 +77,7 @@ class RestartJob implements ShouldQueue
         }
 
         $options = $run->options ?? [];
-        $this->runLocked($run, function (DeploymentHost $dh, DeployLogger $log) use ($shells, $options) {
+        $this->runLocked($run, function (DeploymentHost $dh, DeployLogger $log, PrivilegeCheck $privileges) use ($shells, $options) {
             $action = (string) ($options['action'] ?? '');
             $slug = $options['installation_slug'] ?? null;
             $service = $options['service'] ?? null;
@@ -87,7 +88,8 @@ class RestartJob implements ShouldQueue
 
             $shell = $shells->for($dh->host);
             try {
-                $result = $shell->exec($command, fn (string $chunk) => $log->output($dh, $chunk));
+                $privileges->ensure($shell, $dh->host);
+                $result = $shell->exec($command, fn (string $chunk) => $log->output($dh, $chunk), RemoteSteps::stdin($dh));
                 $log->flush();
                 if ($result->exitCode === 127 || str_contains($result->output, 'No such file or directory')) {
                     throw new RuntimeException('script not present on the host: run a deploy first');

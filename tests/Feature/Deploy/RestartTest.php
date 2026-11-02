@@ -1,8 +1,10 @@
 <?php
 
+use App\Enums\PrivilegeMode;
 use App\Enums\RunStatus;
 use App\Enums\RunType;
 use App\Jobs\RestartJob;
+use App\Models\Credential;
 use App\Models\DeployRun;
 use App\Models\Installation;
 use App\Models\User;
@@ -29,7 +31,7 @@ function restartShells(): FakeRemoteShellFactory
 it('restarts a single service of an installation', function () {
     $fakes = restartShells();
     $dh = hostWithWordpress(['path' => '/srv/x'], []);
-    $dh->host->update(['sudo' => '']);
+    $dh->host->update(['privilege_mode' => PrivilegeMode::None]);
     $op = operatorOf($dh->deployment);
 
     $this->actingAs($op)->post("/deployment-hosts/{$dh->id}/restart", ['action' => 'restart', 'installation_slug' => 'wp', 'service' => 'wp'])->assertRedirect();
@@ -45,7 +47,7 @@ it('restarts a single service of an installation', function () {
 it('restarts a whole installation and a whole host', function () {
     $fakes = restartShells();
     $dh = hostWithWordpress(['path' => '/srv/x']);
-    $dh->host->update(['sudo' => '']);
+    $dh->host->update(['privilege_mode' => PrivilegeMode::None]);
     $op = operatorOf($dh->deployment);
 
     $this->actingAs($op)->post("/deployment-hosts/{$dh->id}/restart", ['action' => 'stop', 'installation_slug' => 'wp'])->assertRedirect();
@@ -58,18 +60,20 @@ it('restarts a whole installation and a whole host', function () {
         ->toContain("cd '/srv/x' && ./restart.sh start");
 });
 
-it('wraps with sudo when configured', function () {
+it('restarts through sudo with the password on stdin', function () {
     $fakes = restartShells();
     $dh = hostWithWordpress();
-    $dh->host->update(['sudo' => 'sudo -n']);
+    $dh->host->update(['privilege_mode' => PrivilegeMode::SudoPassword,
+        'sudo_credential_id' => Credential::factory()->password()->create(['secret' => 'pw'])->id]);
 
     $this->actingAs(operatorOf($dh->deployment))->post("/deployment-hosts/{$dh->id}/restart", ['action' => 'restart'])->assertRedirect();
     runQueuedRestart();
 
-    $commands = $fakes->shellFor($dh->host)->commands();
-    expect($commands)->toHaveCount(1)
-        ->and($commands[0])->toStartWith('sudo -n sh -c ')
-        ->and($commands[0])->toContain('./restart.sh restart');
+    $shell = $fakes->shellFor($dh->host);
+    expect($shell->commands())->toHaveCount(2)
+        ->and($shell->commands()[0])->toBe("sudo -S -p '' -v")
+        ->and($shell->commands()[1])->toStartWith("sudo -S -p '' -H sh -c ")->toContain('./restart.sh restart')
+        ->and($shell->stdins())->toBe(["pw\n", "pw\n"]);
 });
 
 it('rejects service without installation', function () {

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PrivilegeMode;
 use Database\Factories\HostFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,6 +19,7 @@ class Host extends Model
     {
         return [
             'port' => 'integer',
+            'privilege_mode' => PrivilegeMode::class,
             'reachable' => 'boolean',
             'facts' => 'array',
             'checked_at' => 'datetime',
@@ -27,6 +29,11 @@ class Host extends Model
     public function credential(): BelongsTo
     {
         return $this->belongsTo(Credential::class);
+    }
+
+    public function sudoCredential(): BelongsTo
+    {
+        return $this->belongsTo(Credential::class, 'sudo_credential_id');
     }
 
     public function jumpHost(): BelongsTo

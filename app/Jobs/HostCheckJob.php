@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Deploy\RemoteSteps;
+use App\Infrastructure\Privilege;
 use App\Models\Host;
 use App\Ssh\RemoteCommandFailed;
 use App\Ssh\RemoteShell;
@@ -62,7 +62,7 @@ class HostCheckJob implements ShouldQueue
      */
     private function docker(RemoteShell $shell, Host $host): array
     {
-        $result = $shell->exec(RemoteSteps::withSudo((string) $host->sudo, self::DOCKER_COMMAND), timeout: self::COMMAND_TIMEOUT);
+        $result = $shell->exec(Privilege::for($host)->wrap(self::DOCKER_COMMAND), timeout: self::COMMAND_TIMEOUT);
 
         if ($result->successful()) {
             return ['docker' => trim($result->stdout)];

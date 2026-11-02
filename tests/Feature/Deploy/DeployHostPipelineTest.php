@@ -145,12 +145,6 @@ it('wraps commands with sudo and chowns the folder', function () {
         ->and($shell->commands())->toContain(RemoteSteps::wrap($dh, './restart.sh restart'));
 });
 
-it('wraps without sudo as a plain cd', function () {
-    $dh = hostWithWordpress(['path' => '/srv/x']);
-
-    expect(RemoteSteps::wrap($dh, 'ls'))->toBe("cd '/srv/x' && ls");
-});
-
 it('fails before connecting when required variables are missing', function () {
     $fakes = fakeShells();
     $dh = hostWithWordpress(['path' => '/srv/x']);

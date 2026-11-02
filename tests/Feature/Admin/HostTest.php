@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\PrivilegeMode;
 use App\Models\Credential;
 use App\Models\Host;
 use App\Models\User;
@@ -9,7 +10,7 @@ function hostPayload(array $overrides = []): array
 {
     return [
         'name' => 'web1', 'hostname' => 'web1.example.com', 'port' => 22, 'username' => 'deploy',
-        'credential_id' => Credential::factory()->sshKey()->create()->id, 'jump_host_id' => null, 'sudo' => '',
+        'credential_id' => Credential::factory()->sshKey()->create()->id, 'jump_host_id' => null, 'privilege_mode' => 'none',
         ...$overrides,
     ];
 }
@@ -52,7 +53,7 @@ it('rejects a jump cycle on update', function () {
 
     $this->actingAs(hostAdmin())->put("/admin/hosts/{$a->id}", [
         'name' => $a->name, 'hostname' => $a->hostname, 'port' => 22, 'username' => 'deploy',
-        'credential_id' => $a->credential_id, 'jump_host_id' => $b->id, 'sudo' => '',
+        'credential_id' => $a->credential_id, 'jump_host_id' => $b->id, 'privilege_mode' => 'none',
     ])->assertSessionHasErrors('jump_host_id');
 });
 
@@ -126,4 +127,30 @@ it('applies the host policy', function () {
         ->and(Gate::forUser($plain)->allows('update', $h))->toBeFalse()
         ->and(Gate::forUser($plain)->allows('delete', $h))->toBeFalse()
         ->and(Gate::forUser($plain)->allows('create', Host::class))->toBeFalse();
+});
+
+it('stores sudo with a password credential', function () {
+    $pw = Credential::factory()->password()->create();
+    $this->actingAs(hostAdmin())->post('/admin/hosts', hostPayload(['privilege_mode' => 'sudo_password', 'sudo_credential_id' => $pw->id]))->assertRedirect('/admin/hosts');
+    expect(Host::first())->privilege_mode->toBe(PrivilegeMode::SudoPassword)->sudo_credential_id->toBe($pw->id);
+});
+
+it('requires a password credential for sudo with password', function (array $overrides) {
+    $this->actingAs(hostAdmin())->post('/admin/hosts', hostPayload(['privilege_mode' => 'sudo_password', ...$overrides]))
+        ->assertSessionHasErrors('sudo_credential_id');
+})->with([
+    'missing' => [[]],
+    'ssh key' => [fn () => ['sudo_credential_id' => Credential::factory()->sshKey()->create()->id]],
+]);
+
+it('drops the sudo credential when the mode does not need it', function () {
+    $pw = Credential::factory()->password()->create();
+    $this->actingAs(hostAdmin())->post('/admin/hosts', hostPayload(['privilege_mode' => 'sudo', 'sudo_credential_id' => $pw->id]));
+    expect(Host::first()->sudo_credential_id)->toBeNull();
+});
+
+it('never sends the sudo password to the host pages', function () {
+    $host = Host::factory()->sudoPassword(Credential::factory()->password()->create(['secret' => 'SUDO-SECRET']))->create();
+    $this->actingAs(hostAdmin())->get("/admin/hosts/{$host->id}")->assertOk()->assertDontSee('SUDO-SECRET');
+    $this->actingAs(hostAdmin())->get("/admin/hosts/{$host->id}/edit")->assertOk()->assertDontSee('SUDO-SECRET');
 });

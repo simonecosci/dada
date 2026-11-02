@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Deploy\DeployHostPipeline;
 use App\Deploy\DeployLogger;
+use App\Deploy\PrivilegeCheck;
 use App\Generation\HostFilesGenerator;
 use App\Jobs\Concerns\RunsWithDeploymentLock;
 use App\Models\DeploymentHost;
@@ -47,10 +48,10 @@ class DeployJob implements ShouldQueue
         }
 
         $options = $run->options ?? [];
-        $this->runLocked($run, fn (DeploymentHost $dh, DeployLogger $log) => $pipeline->run($run, $dh, $log, [
+        $this->runLocked($run, fn (DeploymentHost $dh, DeployLogger $log, PrivilegeCheck $privileges) => $pipeline->run($run, $dh, $log, [
             'pull' => (bool) ($options['pull'] ?? true),
             'restart' => (bool) ($options['restart'] ?? true),
             'confirm_removals' => (bool) ($options['confirm_removals'] ?? false),
-        ]));
+        ], $privileges));
     }
 }

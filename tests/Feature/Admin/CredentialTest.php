@@ -92,6 +92,26 @@ it('blocks deleting a credential in use by a host', function () {
     expect(Credential::count())->toBe(1);
 });
 
+it('blocks deleting a credential used as a sudo password', function () {
+    $pw = Credential::factory()->password()->create();
+    Host::factory()->sudoPassword($pw)->create();
+
+    $this->actingAs(adminUser())->delete("/admin/credentials/{$pw->id}")
+        ->assertSessionHasErrors(['credential' => 'The credential is used as a sudo password by one or more hosts.']);
+
+    expect(Credential::whereKey($pw->id)->exists())->toBeTrue();
+});
+
+it('blocks changing the type of a credential used as a sudo password', function () {
+    $pw = Credential::factory()->password()->create();
+    Host::factory()->sudoPassword($pw)->create();
+
+    $this->actingAs(adminUser())->put("/admin/credentials/{$pw->id}", ['name' => $pw->name, 'type' => 'ssh-key', 'secret' => 'KEY'])
+        ->assertSessionHasErrors(['type' => 'The credential is used as a sudo password and must stay a password credential.']);
+
+    expect($pw->fresh()->type->value)->toBe('password');
+});
+
 it('forbids non-admins', function () {
     $this->actingAs(User::factory()->create(['is_maintainer' => true]))->get('/admin/credentials')->assertForbidden();
 });

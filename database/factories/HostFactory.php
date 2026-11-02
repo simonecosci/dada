@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\PrivilegeMode;
 use App\Models\Credential;
 use App\Models\Host;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -20,7 +21,20 @@ class HostFactory extends Factory
             'username' => 'deploy',
             'credential_id' => Credential::factory()->sshKey(),
             'jump_host_id' => null,
-            'sudo' => '',
+            'privilege_mode' => PrivilegeMode::None,
         ];
+    }
+
+    public function sudo(): static
+    {
+        return $this->state(fn () => ['privilege_mode' => PrivilegeMode::Sudo]);
+    }
+
+    public function sudoPassword(?Credential $credential = null): static
+    {
+        return $this->state(fn () => [
+            'privilege_mode' => PrivilegeMode::SudoPassword,
+            'sudo_credential_id' => $credential?->id ?? Credential::factory()->password(),
+        ]);
     }
 }

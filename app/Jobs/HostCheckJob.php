@@ -2,7 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Deploy\RemoteSteps;
+use App\Deploy\SecretMasker;
+use App\Infrastructure\Privilege;
 use App\Models\Host;
 use App\Ssh\RemoteCommandFailed;
 use App\Ssh\RemoteShell;
@@ -55,24 +56,45 @@ class HostCheckJob implements ShouldQueue
     }
 
     /**
-     * Docker with the host's sudo prefix. If it fails (daemon down, permissions) the host stays
-     * reachable: docker = null and the error are recorded.
+     * Docker through the host's privilege mode. When sudo is in use, it is validated first: if that
+     * fails, the Docker command is skipped and the error is recorded (masked). If Docker itself fails
+     * (daemon down, permissions) the host stays reachable: docker = null and the (masked) error are recorded.
      *
-     * @return array{docker: ?string, docker_error?: string}
+     * @return array{sudo?: string, sudo_error?: string, docker: ?string, docker_error?: string}
      */
     private function docker(RemoteShell $shell, Host $host): array
     {
-        $result = $shell->exec(RemoteSteps::withSudo((string) $host->sudo, self::DOCKER_COMMAND), timeout: self::COMMAND_TIMEOUT);
+        $privilege = Privilege::for($host);
+        $masker = new SecretMasker($privilege->secrets());
+        $facts = [];
+
+        if ($privilege->escalates()) {
+            $check = $shell->exec((string) $privilege->validateCommand(), stdin: $privilege->stdin(), timeout: self::COMMAND_TIMEOUT);
+
+            if (! $check->successful()) {
+                $error = trim($check->output);
+
+                return [
+                    'sudo_error' => Str::limit($masker->mask($error !== '' ? $error : "exit {$check->exitCode}"), 500),
+                    'docker' => null,
+                    'docker_error' => 'skipped: sudo failed',
+                ];
+            }
+
+            $facts['sudo'] = 'ok';
+        }
+
+        $result = $shell->exec($privilege->wrap(self::DOCKER_COMMAND), stdin: $privilege->stdin(), timeout: self::COMMAND_TIMEOUT);
 
         if ($result->successful()) {
-            return ['docker' => trim($result->stdout)];
+            return $facts + ['docker' => trim($result->stdout)];
         }
 
         $error = trim($result->output);
 
-        return [
+        return $facts + [
             'docker' => null,
-            'docker_error' => Str::limit($error !== '' ? $error : "exit {$result->exitCode}", 500),
+            'docker_error' => Str::limit($masker->mask($error !== '' ? $error : "exit {$result->exitCode}"), 500),
         ];
     }
 

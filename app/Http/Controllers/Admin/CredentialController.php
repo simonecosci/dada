@@ -62,6 +62,12 @@ class CredentialController extends Controller
 
         $data = $this->validated($request, $credential);
 
+        if ($data['type'] !== CredentialType::Password->value && $credential->sudoHosts()->exists()) {
+            throw ValidationException::withMessages([
+                'type' => 'The credential is used as a sudo password and must stay a password credential.',
+            ]);
+        }
+
         if (blank($data['secret'] ?? null)) {
             unset($data['secret']);
         }
@@ -78,6 +84,12 @@ class CredentialController extends Controller
         if ($credential->hosts()->exists()) {
             throw ValidationException::withMessages([
                 'credential' => 'The credential is used by one or more hosts.',
+            ]);
+        }
+
+        if ($credential->sudoHosts()->exists()) {
+            throw ValidationException::withMessages([
+                'credential' => 'The credential is used as a sudo password by one or more hosts.',
             ]);
         }
 

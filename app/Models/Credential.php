@@ -22,6 +22,11 @@ class Credential extends Model
         return $this->hasMany(Host::class);
     }
 
+    public function sudoHosts(): HasMany
+    {
+        return $this->hasMany(Host::class, 'sudo_credential_id');
+    }
+
     protected function casts(): array
     {
         return [

@@ -86,14 +86,14 @@ it('masks secrets in host errors', function () {
     [$d, $dhA, $dhB] = deploymentWithTwoHosts();
     $dhA->registries()->attach(Credential::factory()->registry()->create(['secret' => 'reg-token-9']));
     $fakes->shellFor($dhA->host)->expect('/df -Pm/', 0, "50000\n")->expect('/restart\.sh/', 2, "leak pw-123 reg-token-9\n");
-    $fakes->shellFor($dhB->host)->failConnect(new RuntimeException('connessione fallita pw-123'));
+    $fakes->shellFor($dhB->host)->failConnect(new RuntimeException('connection failed pw-123'));
     $run = DeployRun::factory()->for($d)->create(['options' => ['pull' => false, 'restart' => true, 'confirm_removals' => false]]);
 
     DeployJob::dispatchSync($run->id);
 
     $errors = $run->hosts()->pluck('error')->implode("\n");
     $logs = $run->logs()->pluck('message')->implode("\n");
-    expect($errors)->toContain('exit 2')->toContain('connessione fallita')
+    expect($errors)->toContain('exit 2')->toContain('connection failed')
         ->not->toContain('pw-123')->not->toContain('reg-token-9')
         ->and($logs)->not->toContain('pw-123')->not->toContain('reg-token-9')
         ->and($run->logs()->where('level', 'error')->count())->toBe(2);

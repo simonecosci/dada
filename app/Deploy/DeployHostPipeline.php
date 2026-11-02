@@ -86,7 +86,7 @@ class DeployHostPipeline
             }
 
             if ($options['restart'] ?? false) {
-                $log->step($dh, 'Riavvio');
+                $log->step($dh, 'Restarting');
                 $this->execIn($shell, $dh, $log, './restart.sh restart');
             }
         } finally {
@@ -253,8 +253,9 @@ class DeployHostPipeline
                     continue;
                 }
 
-                $file = $staging->put('registry-'.$registry->id, (string) $registry->secret, 0600);
-                $this->execIn($shell, $dh, $log, $command.' < '.ScriptRenderer::quote($file));
+                // The secret file is removed by the same command, whatever the outcome of the login.
+                $file = ScriptRenderer::quote($staging->put('registry-'.$registry->id, (string) $registry->secret, 0600));
+                $this->execIn($shell, $dh, $log, "{$command} < {$file}; rc=\$?; rm -f {$file}; exit \$rc");
             }
         } finally {
             $staging?->close();

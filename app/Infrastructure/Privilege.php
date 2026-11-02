@@ -29,6 +29,11 @@ final readonly class Privilege
             throw new RuntimeException("host {$host->name}: the sudo password credential is missing");
         }
 
+        // sudo -S reads one line: a line break would split the password and leak the rest to the command.
+        if (str_contains($secret, "\n") || str_contains($secret, "\r")) {
+            throw new RuntimeException("host {$host->name}: the sudo password must not contain line breaks");
+        }
+
         return new self(PrivilegeMode::SudoPassword, $secret);
     }
 
@@ -37,12 +42,16 @@ final readonly class Privilege
         return $this->mode !== PrivilegeMode::None;
     }
 
+    /**
+     * Escalated commands start with `exec </dev/null`: if sudo does not read the password
+     * (cached timestamp, NOPASSWD), it must not reach the stdin of $cmd.
+     */
     public function wrap(string $cmd): string
     {
         return match ($this->mode) {
             PrivilegeMode::None => $cmd,
-            PrivilegeMode::Sudo => 'sudo -n -H sh -c '.ScriptRenderer::quote($cmd),
-            PrivilegeMode::SudoPassword => "sudo -S -p '' -H sh -c ".ScriptRenderer::quote($cmd),
+            PrivilegeMode::Sudo => 'sudo -n -H sh -c '.ScriptRenderer::quote('exec </dev/null; '.$cmd),
+            PrivilegeMode::SudoPassword => "sudo -S -p '' -H sh -c ".ScriptRenderer::quote('exec </dev/null; '.$cmd),
         };
     }
 

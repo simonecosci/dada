@@ -29,7 +29,13 @@ return new class extends Migration
             DB::table('hosts')->where('id', $host->id)->update(['privilege_mode' => 'sudo']);
 
             if ($prefix !== 'sudo -n') {
-                Log::warning("Host {$host->name}: sudo prefix '{$prefix}' replaced by passwordless sudo (sudo -n -H).");
+                $warning = "Host {$host->name}: sudo prefix '{$prefix}' replaced by passwordless sudo (sudo -n -H).";
+                Log::warning($warning);
+
+                // Also visible to whoever runs `php artisan migrate`, not only in the log.
+                if (app()->runningInConsole() && defined('STDERR')) {
+                    fwrite(STDERR, "WARNING: {$warning}\n");
+                }
             }
         }
 

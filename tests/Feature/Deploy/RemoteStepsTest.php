@@ -16,7 +16,7 @@ it('wraps with sudo and quotes the path through both levels', function () {
     $dh = DeploymentHost::factory()->for(Host::factory()->sudo())->create(['path' => "/srv/o'x"]);
 
     expect(RemoteSteps::wrap($dh, 'ls'))
-        ->toBe("sudo -n -H sh -c 'cd '\''/srv/o'\''\'\'''\''x'\'' && ls'")
+        ->toBe("sudo -n -H sh -c 'exec </dev/null; cd '\''/srv/o'\''\'\'''\''x'\'' && ls'")
         ->and(RemoteSteps::stdin($dh))->toBeNull();
 });
 
@@ -24,7 +24,7 @@ it('exposes the sudo password as stdin only for sudo_password hosts', function (
     $credential = Credential::factory()->password()->create(['secret' => 'pw-1']);
     $dh = DeploymentHost::factory()->for(Host::factory()->sudoPassword($credential))->create(['path' => '/srv/x']);
 
-    expect(RemoteSteps::wrap($dh, 'ls'))->toBe("sudo -S -p '' -H sh -c 'cd '\''/srv/x'\'' && ls'")
+    expect(RemoteSteps::wrap($dh, 'ls'))->toBe("sudo -S -p '' -H sh -c 'exec </dev/null; cd '\''/srv/x'\'' && ls'")
         ->and(RemoteSteps::stdin($dh))->toBe("pw-1\n");
 });
 

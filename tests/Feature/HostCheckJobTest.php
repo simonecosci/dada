@@ -86,7 +86,7 @@ it('validates sudo before docker and sends the password on stdin', function () {
 
     expect($host->fresh()->facts)->toMatchArray(['sudo' => 'ok', 'docker' => '27.3.1'])
         ->and($shell->commands())->toContain("sudo -S -p '' -v")
-        ->toContain("sudo -S -p '' -H sh -c 'docker version --format '\''{{.Server.Version}}'\'''")
+        ->toContain("sudo -S -p '' -H sh -c 'exec </dev/null; docker version --format '\''{{.Server.Version}}'\'''")
         ->and(array_values(array_filter($shell->stdins())))->toBe(["pw\n", "pw\n"]);
 });
 
@@ -115,6 +115,22 @@ it('masks the sudo password in a recorded sudo error', function () {
     HostCheckJob::dispatchSync($host->id);
 
     expect(json_encode($host->fresh()->facts))->not->toContain('hunter22');
+});
+
+it('masks the sudo password in a recorded docker error', function () {
+    $fakes = new FakeRemoteShellFactory;
+    app()->instance(RemoteShellFactory::class, $fakes);
+    $host = Host::factory()->sudoPassword(Credential::factory()->password()->create(['secret' => 'hunter22']))->create();
+    $fakes->shellFor($host)->expect('/uname/', 0, "Linux 6.8\n")->expect('/ -v\z/', 0)
+        ->expect('/docker version/', 1, '', "docker: hunter22 rejected\n")
+        ->expect('/nproc/', 0, "4\n")->expect('/MemTotal/', 0, "7936\n")->expect('/df -Pm/', 0, "51200\n");
+
+    HostCheckJob::dispatchSync($host->id);
+
+    $facts = $host->fresh()->facts;
+    expect($facts['docker'])->toBeNull()
+        ->and($facts['docker_error'])->toBe('docker: ****** rejected')
+        ->and(json_encode($facts))->not->toContain('hunter22');
 });
 
 it('marks the host unreachable when the sudo credential is missing', function () {

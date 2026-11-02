@@ -58,13 +58,14 @@ class HostCheckJob implements ShouldQueue
     /**
      * Docker through the host's privilege mode. When sudo is in use, it is validated first: if that
      * fails, the Docker command is skipped and the error is recorded (masked). If Docker itself fails
-     * (daemon down, permissions) the host stays reachable: docker = null and the error are recorded.
+     * (daemon down, permissions) the host stays reachable: docker = null and the (masked) error are recorded.
      *
      * @return array{sudo?: string, sudo_error?: string, docker: ?string, docker_error?: string}
      */
     private function docker(RemoteShell $shell, Host $host): array
     {
         $privilege = Privilege::for($host);
+        $masker = new SecretMasker($privilege->secrets());
         $facts = [];
 
         if ($privilege->escalates()) {
@@ -74,7 +75,7 @@ class HostCheckJob implements ShouldQueue
                 $error = trim($check->output);
 
                 return [
-                    'sudo_error' => (new SecretMasker($privilege->secrets()))->mask(Str::limit($error !== '' ? $error : "exit {$check->exitCode}", 500)),
+                    'sudo_error' => Str::limit($masker->mask($error !== '' ? $error : "exit {$check->exitCode}"), 500),
                     'docker' => null,
                     'docker_error' => 'skipped: sudo failed',
                 ];
@@ -93,7 +94,7 @@ class HostCheckJob implements ShouldQueue
 
         return $facts + [
             'docker' => null,
-            'docker_error' => Str::limit($error !== '' ? $error : "exit {$result->exitCode}", 500),
+            'docker_error' => Str::limit($masker->mask($error !== '' ? $error : "exit {$result->exitCode}"), 500),
         ];
     }
 

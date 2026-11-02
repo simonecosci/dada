@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Deploy\DeployLogger;
 use App\Deploy\PrivilegeCheck;
 use App\Deploy\RemoteSteps;
+use App\Infrastructure\Privilege;
 use App\Jobs\Concerns\RunsWithDeploymentLock;
 use App\Models\DeploymentHost;
 use App\Models\DeployRun;
@@ -88,7 +89,10 @@ class RestartJob implements ShouldQueue
 
             $shell = $shells->for($dh->host);
             try {
-                $privileges->ensure($shell, $dh->host);
+                if (Privilege::for($dh->host)->escalates()) {
+                    $log->step($dh, 'Checking sudo');
+                    $privileges->ensure($shell, $dh->host);
+                }
                 $result = $shell->exec($command, fn (string $chunk) => $log->output($dh, $chunk), RemoteSteps::stdin($dh));
                 $log->flush();
                 if ($result->exitCode === 127 || str_contains($result->output, 'No such file or directory')) {

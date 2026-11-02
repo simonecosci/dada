@@ -62,7 +62,7 @@ it('restarts a whole installation and a whole host', function () {
 
 it('restarts through sudo with the password on stdin', function () {
     $fakes = restartShells();
-    $dh = hostWithWordpress();
+    $dh = hostWithWordpress(['path' => '/srv/x']);
     $dh->host->update(['privilege_mode' => PrivilegeMode::SudoPassword,
         'sudo_credential_id' => Credential::factory()->password()->create(['secret' => 'pw'])->id]);
 
@@ -72,8 +72,21 @@ it('restarts through sudo with the password on stdin', function () {
     $shell = $fakes->shellFor($dh->host);
     expect($shell->commands())->toHaveCount(2)
         ->and($shell->commands()[0])->toBe("sudo -S -p '' -v")
-        ->and($shell->commands()[1])->toStartWith("sudo -S -p '' -H sh -c ")->toContain('./restart.sh restart')
-        ->and($shell->stdins())->toBe(["pw\n", "pw\n"]);
+        ->and($shell->commands()[1])->toBe("sudo -S -p '' -H sh -c 'exec </dev/null; cd '\\''/srv/x'\\'' && ./restart.sh restart'")
+        ->and($shell->stdins())->toBe(["pw\n", "pw\n"])
+        ->and(DeployRun::sole()->logs()->where('level', 'step')->pluck('message')->all())->toBe(['Action restart: the whole host', 'Checking sudo']);
+});
+
+it('does not check sudo on a host without escalation', function () {
+    $fakes = restartShells();
+    $dh = hostWithWordpress(['path' => '/srv/x']);
+    $dh->host->update(['privilege_mode' => PrivilegeMode::None]);
+
+    $this->actingAs(operatorOf($dh->deployment))->post("/deployment-hosts/{$dh->id}/restart", ['action' => 'restart'])->assertRedirect();
+    runQueuedRestart();
+
+    expect($fakes->shellFor($dh->host)->commands())->toBe(["cd '/srv/x' && ./restart.sh restart"])
+        ->and(DeployRun::sole()->logs()->where('level', 'step')->pluck('message')->all())->toBe(['Action restart: the whole host']);
 });
 
 it('rejects service without installation', function () {

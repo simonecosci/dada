@@ -3,11 +3,13 @@
 namespace App\Jobs\Concerns;
 
 use App\Deploy\DeployLogger;
+use App\Deploy\PrivilegeCheck;
 use App\Deploy\RunTerminator;
 use App\Deploy\SecretMasker;
 use App\Enums\CredentialType;
 use App\Enums\RunStatus;
 use App\Events\DeployRunUpdated;
+use App\Infrastructure\Privilege;
 use App\Models\DeploymentHost;
 use App\Models\DeployRun;
 use App\Models\DeployRunHost;
@@ -33,10 +35,11 @@ trait RunsWithDeploymentLock
     }
 
     /**
-     * Runs $perHost(DeploymentHost $dh, DeployLogger $log) for each host of the run; an exception
-     * marks that host as failed (masked message) and moves on to the next one.
+     * Runs $perHost(DeploymentHost $dh, DeployLogger $log, PrivilegeCheck $privileges) for each host of the run;
+     * an exception marks that host as failed (masked message) and moves on to the next one.
+     * One PrivilegeCheck is shared by the whole run, so sudo is validated once per SSH host.
      *
-     * @param  Closure(DeploymentHost, DeployLogger): void  $perHost
+     * @param  Closure(DeploymentHost, DeployLogger, PrivilegeCheck): void  $perHost
      */
     protected function runLocked(DeployRun $run, Closure $perHost): void
     {
@@ -57,9 +60,10 @@ trait RunsWithDeploymentLock
             $run->update(['status' => RunStatus::Running, 'started_at' => now(), 'error' => null]);
             DeployRunUpdated::safeDispatch($run);
 
+            $privileges = new PrivilegeCheck;
             $allSucceeded = true;
             foreach ($hosts as $dh) {
-                $allSucceeded = $this->runHost($run, $dh, $log, $perHost) && $allSucceeded;
+                $allSucceeded = $this->runHost($run, $dh, $log, $privileges, $perHost) && $allSucceeded;
             }
 
             // An admin (or the reaper) may have already closed it as failed: do not overwrite.
@@ -84,8 +88,8 @@ trait RunsWithDeploymentLock
         RunTerminator::fail($run, 'run interrupted'.($e !== null ? ' ('.class_basename($e).')' : ''));
     }
 
-    /** @param  Closure(DeploymentHost, DeployLogger): void  $perHost */
-    private function runHost(DeployRun $run, DeploymentHost $dh, DeployLogger $log, Closure $perHost): bool
+    /** @param  Closure(DeploymentHost, DeployLogger, PrivilegeCheck): void  $perHost */
+    private function runHost(DeployRun $run, DeploymentHost $dh, DeployLogger $log, PrivilegeCheck $privileges, Closure $perHost): bool
     {
         $runHost = DeployRunHost::create([
             'deploy_run_id' => $run->id,
@@ -96,7 +100,7 @@ trait RunsWithDeploymentLock
         DeployRunUpdated::safeDispatch($run);
 
         try {
-            $perHost($dh, $log);
+            $perHost($dh, $log, $privileges);
             $log->flush();
             $runHost->update(['status' => RunStatus::Succeeded, 'finished_at' => now()]);
             $succeeded = true;
@@ -129,8 +133,8 @@ trait RunsWithDeploymentLock
     }
 
     /**
-     * Secrets read directly from the DB (secret variables of hosts and installations, registry credentials),
-     * independent of generation: a broken configuration must not leave the output unmasked.
+     * Secrets read directly from the DB (secret variables of hosts and installations, sudo passwords,
+     * registry credentials), independent of generation: a broken configuration must not leave the output unmasked.
      *
      * @param  Collection<int, DeploymentHost>  $hosts
      */
@@ -152,13 +156,14 @@ trait RunsWithDeploymentLock
             }
 
             try {
+                $secrets = [...$secrets, ...Privilege::for($dh->host)->secrets()];
                 foreach ($dh->registries as $registry) {
                     if ($registry->type === CredentialType::Registry && is_string($registry->secret)) {
                         $secrets[] = $registry->secret;
                     }
                 }
             } catch (Throwable $e) {
-                // Undecryptable secret: the host pipeline will report it.
+                // Undecryptable or missing secret: the host pipeline will report it.
                 report($e);
             }
         }

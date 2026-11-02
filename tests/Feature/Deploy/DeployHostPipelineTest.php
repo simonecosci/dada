@@ -2,12 +2,14 @@
 
 use App\Deploy\DeployHostPipeline;
 use App\Deploy\DeployLogger;
-use App\Deploy\RemoteSteps;
+use App\Deploy\PrivilegeCheck;
 use App\Deploy\SecretMasker;
+use App\Enums\PrivilegeMode;
 use App\Models\Credential;
 use App\Models\DeploymentHost;
 use App\Models\DeploymentSnapshot;
 use App\Models\DeployRun;
+use App\Ssh\Fake\FakeRemoteShell;
 use App\Ssh\Fake\FakeRemoteShellFactory;
 use App\Ssh\RemoteCommandFailed;
 use App\Ssh\RemoteShellFactory;
@@ -21,6 +23,7 @@ function runPipeline(DeployRun $run, DeploymentHost $dh, array $options = []): v
         $dh,
         new DeployLogger($run, new SecretMasker([])),
         $options + ['pull' => true, 'restart' => true, 'confirm_removals' => false],
+        new PrivilegeCheck,
     );
 }
 
@@ -32,13 +35,40 @@ function fakeShells(): FakeRemoteShellFactory
     return $fakes;
 }
 
+/**
+ * Wordpress deployment host whose SSH host escalates with $mode; in SudoPassword mode
+ * a password credential holds $pw.
+ *
+ * @return array{DeploymentHost, FakeRemoteShell, DeployRun}
+ */
+function privilegedHost(string $path, PrivilegeMode $mode, ?string $pw = null): array
+{
+    $fakes = fakeShells();
+    $dh = hostWithWordpress(['path' => $path]);
+    $dh->host->update([
+        'privilege_mode' => $mode,
+        'sudo_credential_id' => $pw !== null ? Credential::factory()->password()->create(['secret' => $pw])->id : null,
+    ]);
+    $dh->refresh();
+    $run = DeployRun::factory()->for($dh->deployment)->create();
+    $shell = $fakes->shellFor($dh->host)->expect('/df -Pm/', 0, "50000\n")->expect('/mktemp -d/', 0, "/tmp/tmp.Ab1\n");
+
+    return [$dh, $shell, $run];
+}
+
+/** @return array{DeploymentHost, FakeRemoteShell, DeployRun} */
+function sudoPasswordHost(string $path, string $pw): array
+{
+    return privilegedHost($path, PrivilegeMode::SudoPassword, $pw);
+}
+
 it('runs the full pipeline on a compose host', function () {
     $fakes = new FakeRemoteShellFactory;
     app()->instance(RemoteShellFactory::class, $fakes);
     $dh = hostWithWordpress(['path' => '/srv/x']);
     $run = DeployRun::factory()->for($dh->deployment)->create();
     $shell = $fakes->shellFor($dh->host)->expect('/df -Pm/', 0, "50000\n");
-    app(DeployHostPipeline::class)->run($run, $dh, new DeployLogger($run, new SecretMasker([])), ['pull' => true, 'restart' => true, 'confirm_removals' => false]);
+    app(DeployHostPipeline::class)->run($run, $dh, new DeployLogger($run, new SecretMasker([])), ['pull' => true, 'restart' => true, 'confirm_removals' => false], new PrivilegeCheck);
     expect($shell->files())->toHaveKeys(['/srv/x/docker-compose.yml', '/srv/x/.env', '/srv/x/.env.wp', '/srv/x/wp.sh', '/srv/x/restart.sh'])
         ->and($shell->files()['/srv/x/.env.wp']['mode'])->toBe(0600)
         ->and($shell->files()['/srv/x/restart.sh']['mode'])->toBe(0755)
@@ -128,21 +158,67 @@ it('fails when the backup fails and uploads nothing', function () {
         ->and(DeploymentSnapshot::count())->toBe(0);
 });
 
-it('wraps commands with sudo and chowns the folder', function () {
-    $fakes = fakeShells();
-    $dh = hostWithWordpress(['path' => "/srv/o'x"]);
-    $dh->host->update(['sudo' => 'sudo -n', 'username' => 'deploy']);
-    $dh->refresh();
-    $run = DeployRun::factory()->for($dh->deployment)->create();
-    $shell = $fakes->shellFor($dh->host)->expect('/df -Pm/', 0, "50000\n");
-
+it('runs every step through sudo with the password only on stdin', function () {
+    $pw = "p'a\$s w\"d\\";
+    [$dh, $shell, $run] = sudoPasswordHost('/srv/x', $pw);
     runPipeline($run, $dh);
 
-    expect(RemoteSteps::wrap($dh, './restart.sh restart'))
-        ->toBe("sudo -n sh -c 'cd '\\''/srv/o'\\''\\'\\'''\\''x'\\'' && ./restart.sh restart'")
-        ->and($shell->commands())->toContain("sudo -n mkdir -p '/srv/o'\\''x/.dada/backups' && sudo -n chown 'deploy' '/srv/o'\\''x' && sudo -n chown -R 'deploy' '/srv/o'\\''x/.dada'")
-        ->and(implode("\n", $shell->commands()))->not->toContain("chown -R 'deploy' '/srv/o'\\''x' ")
-        ->and($shell->commands())->toContain(RemoteSteps::wrap($dh, './restart.sh restart'));
+    $commands = $shell->commands();
+    $stdins = $shell->stdins();
+    expect($commands[0])->toBe("sudo -S -p '' -v")
+        ->and($commands)->toContain("sudo -S -p '' -H sh -c 'mkdir -p '\\''/srv/x/.dada/backups'\\'''")
+        ->and(implode("\n", $commands))->not->toContain($pw)->not->toContain('chown');
+    foreach ($commands as $i => $command) {
+        expect($stdins[$i])->toBe(str_starts_with($command, 'sudo ') ? $pw."\n" : null, $command);
+    }
+});
+
+it('stages files as the login user and installs them with one sudo call', function () {
+    [$dh, $shell, $run] = sudoPasswordHost('/srv/x', 'pw');
+    runPipeline($run, $dh, ['pull' => false, 'restart' => false]);
+
+    $install = collect($shell->commands())->filter(fn ($c) => str_contains($c, 'mv -f'))->values();
+    expect(array_keys($shell->files()))->each->toStartWith('/tmp/tmp.Ab1/')
+        ->and($shell->files()['/tmp/tmp.Ab1/.env.wp']['mode'])->toBe(0600)
+        ->and($install)->toHaveCount(1)
+        ->and($install[0])->toStartWith("sudo -S -p '' -H sh -c ")
+        ->and($shell->commands())->toContain("rm -rf '/tmp/tmp.Ab1'");
+});
+
+it('logs in to registries from a staged file in sudo mode', function () {
+    [$dh, $shell, $run] = sudoPasswordHost('/srv/x', 'pw');
+    $registry = Credential::factory()->registry()->create(['secret' => 'reg-secret']);
+    $dh->registries()->attach($registry);
+    runPipeline($run, $dh->refresh());
+
+    $login = collect($shell->commands())->first(fn ($c) => str_contains($c, 'docker login'));
+    expect($login)->toContain('--password-stdin < ')->toContain("registry-{$registry->id}")
+        ->and($shell->files()["/tmp/tmp.Ab1/registry-{$registry->id}"]['contents'])->toBe('reg-secret')
+        ->and($shell->stdins())->not->toContain('reg-secret');
+});
+
+it('stops before any other command when sudo validation fails', function () {
+    [$dh, $shell, $run] = sudoPasswordHost('/srv/x', 'wrong');
+    $shell->expect('/\Asudo -S -p \'\' -v\z/', 1, '', "Sorry, try again.\nsudo: 3 incorrect password attempts\n");
+    expect(fn () => runPipeline($run, $dh))->toThrow(RuntimeException::class, 'sudo authentication failed on');
+    expect($shell->commands())->toBe(["sudo -S -p '' -v"])->and($shell->files())->toBe([]);
+});
+
+it('passwordless sudo uses sudo -n -H and no stdin', function () {
+    [$dh, $shell, $run] = privilegedHost('/srv/x', PrivilegeMode::Sudo);
+    runPipeline($run, $dh);
+
+    $commands = $shell->commands();
+    $escalated = array_values(array_filter($commands, fn ($c) => str_starts_with($c, 'sudo ')));
+    expect($commands[0])->toBe('sudo -n -v')
+        ->and($commands)->toContain("sudo -n -H sh -c 'mkdir -p '\\''/srv/x/.dada/backups'\\'''")
+        ->and(collect($commands)->filter(fn ($c) => str_contains($c, 'mv -f')))->toHaveCount(1)
+        ->and(implode("\n", $commands))->not->toContain('chown')->toContain('./restart.sh restart')
+        ->and($escalated)->not->toBeEmpty()
+        ->and($shell->stdins())->each->toBeNull();
+    foreach (array_slice($escalated, 1) as $command) {
+        expect($command)->toStartWith('sudo -n -H sh -c ');
+    }
 });
 
 it('fails before connecting when required variables are missing', function () {

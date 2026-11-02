@@ -5,8 +5,10 @@ use App\Enums\RunStatus;
 use App\Events\DeployRunUpdated;
 use App\Jobs\DeployJob;
 use App\Models\Credential;
+use App\Models\Deployment;
 use App\Models\DeployRun;
 use App\Models\DeployRunHost;
+use App\Models\Host;
 use App\Ssh\Fake\FakeRemoteShellFactory;
 use App\Ssh\HostKeyChanged;
 use App\Ssh\RemoteShellFactory;
@@ -95,6 +97,30 @@ it('masks secrets in host errors', function () {
         ->not->toContain('pw-123')->not->toContain('reg-token-9')
         ->and($logs)->not->toContain('pw-123')->not->toContain('reg-token-9')
         ->and($run->logs()->where('level', 'error')->count())->toBe(2);
+});
+
+it('validates sudo once per host and run, failing every deployment host on it without leaking the password', function () {
+    $fakes = new FakeRemoteShellFactory;
+    app()->instance(RemoteShellFactory::class, $fakes);
+    $pw = 'wrong-sudo-pw';
+    $host = Host::factory()->sudoPassword(Credential::factory()->password()->create(['secret' => $pw]))->create();
+    $d = Deployment::factory()->create();
+    hostWithWordpress(['deployment_id' => $d->id, 'host_id' => $host->id, 'path' => '/srv/a', 'stack_name' => 'stack-a']);
+    hostWithWordpress(['deployment_id' => $d->id, 'host_id' => $host->id, 'path' => '/srv/b', 'stack_name' => 'stack-b']);
+    $shell = $fakes->shellFor($host)->expect('/\Asudo -S -p \'\' -v\z/', 1, '', "Sorry, try again.\nsudo: 3 incorrect password attempts\n");
+    $run = DeployRun::factory()->for($d)->create(['options' => ['pull' => true, 'restart' => true, 'confirm_removals' => false]]);
+
+    DeployJob::dispatchSync($run->id);
+
+    $hosts = $run->hosts()->get();
+    expect(collect($shell->commands())->filter(fn ($c) => $c === "sudo -S -p '' -v"))->toHaveCount(1)
+        ->and($shell->commands())->toHaveCount(1)
+        ->and($hosts)->toHaveCount(2)
+        ->and($hosts->pluck('status')->all())->toBe([RunStatus::Failed, RunStatus::Failed])
+        ->and($hosts->pluck('error')->all())->each->toContain('sudo authentication failed')
+        ->and($run->fresh()->status)->toBe(RunStatus::Failed)
+        ->and($run->logs()->pluck('message')->implode("\n"))->not->toContain($pw)
+        ->and($hosts->pluck('error')->implode("\n"))->not->toContain($pw);
 });
 
 it('failed() marks run failed and releases lock', function () {

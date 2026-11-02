@@ -7,6 +7,7 @@ use App\Enums\Orchestrator;
 use App\Generation\GeneratedFiles;
 use App\Generation\HostFilesGenerator;
 use App\Generation\ScriptRenderer;
+use App\Infrastructure\Privilege;
 use App\Models\Credential;
 use App\Models\DeploymentHost;
 use App\Models\DeploymentSnapshot;
@@ -32,9 +33,11 @@ class DeployHostPipeline
     ) {}
 
     /** @param  array{pull?: bool, restart?: bool, confirm_removals?: bool}  $options */
-    public function run(DeployRun $run, DeploymentHost $dh, DeployLogger $log, array $options): void
+    public function run(DeployRun $run, DeploymentHost $dh, DeployLogger $log, array $options, PrivilegeCheck $privileges): void
     {
         $dh->loadMissing('host');
+        $privilege = Privilege::for($dh->host);
+        $log->addSecrets($privilege->secrets());
 
         $log->step($dh, 'Generating files');
         $generated = $this->generator->generate($dh);
@@ -65,21 +68,26 @@ class DeployHostPipeline
         $shell = $this->shells->for($dh->host);
 
         try {
+            if ($privilege->escalates()) {
+                $log->step($dh, 'Checking sudo');
+                $privileges->ensure($shell, $dh->host);
+            }
+
             $this->checkDiskSpace($shell, $dh, $log);
-            $this->prepareFolder($shell, $dh, $log);
+            $this->prepareFolder($shell, $dh, $log, $privilege);
             $this->backup($shell, $dh, $log, $generated);
-            $this->upload($shell, $dh, $log, $generated);
+            $this->upload($shell, $dh, $log, $generated, $privilege);
             $this->remove($shell, $dh, $log, $removals);
-            $this->login($shell, $dh, $log, $registries);
+            $this->login($shell, $dh, $log, $registries, $privilege);
 
             if (($options['pull'] ?? false) && $dh->orchestrator === Orchestrator::Compose) {
                 $log->step($dh, 'Pulling images');
-                $this->exec($shell, $dh, $log, RemoteSteps::wrap($dh, 'docker compose pull --ignore-buildable'));
+                $this->execIn($shell, $dh, $log, 'docker compose pull --ignore-buildable');
             }
 
             if ($options['restart'] ?? false) {
                 $log->step($dh, 'Riavvio');
-                $this->exec($shell, $dh, $log, RemoteSteps::wrap($dh, './restart.sh restart'));
+                $this->execIn($shell, $dh, $log, './restart.sh restart');
             }
         } finally {
             $shell->close();
@@ -136,24 +144,12 @@ class DeployHostPipeline
             .'df -Pm "$p" | awk \'NR==2{print $4}\'';
     }
 
-    private function prepareFolder(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log): void
+    private function prepareFolder(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log, Privilege $privilege): void
     {
         $log->step($dh, 'Preparing the directory');
-        $base = rtrim($dh->path, '/');
-        $path = ScriptRenderer::quote($dh->path);
-        $backups = ScriptRenderer::quote($base.'/.dada/backups');
-        $sudo = RemoteSteps::sudo($dh);
+        $backups = ScriptRenderer::quote(rtrim($dh->path, '/').'/.dada/backups');
 
-        if ($sudo === '') {
-            $this->exec($shell, $dh, $log, "mkdir -p {$backups}");
-
-            return;
-        }
-
-        // recursive chown only on .dada: the directory may contain bind-mounted data (e.g. DB) that must not be touched.
-        $user = ScriptRenderer::quote($dh->host->username);
-        $dada = ScriptRenderer::quote($base.'/.dada');
-        $this->exec($shell, $dh, $log, "{$sudo} mkdir -p {$backups} && {$sudo} chown {$user} {$path} && {$sudo} chown -R {$user} {$dada}");
+        $this->exec($shell, $dh, $log, $privilege->wrap("mkdir -p {$backups}"), $privilege->stdin());
     }
 
     private function backup(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log, GeneratedFiles $generated): void
@@ -164,27 +160,43 @@ class DeployHostPipeline
         $list = implode(' ', array_map(ScriptRenderer::quote(...), $names));
         $keep = max(1, (int) config('dada.deploy.backup_retention')) + 1;
 
-        $this->exec($shell, $dh, $log, RemoteSteps::wrap($dh, implode(' && ', [
+        $this->execIn($shell, $dh, $log, implode(' && ', [
             'ts=$(date +%Y%m%d_%H%M%S)',
             'mkdir -p .dada/backups/$ts',
             "for f in {$list}; do if [ -e \"\$f\" ]; then cp -p \"\$f\" .dada/backups/\$ts/ || exit 1; fi; done",
             "ls -1dt .dada/backups/*/ | tail -n +{$keep} | xargs -r rm -rf",
-        ])));
+        ]));
     }
 
-    private function upload(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log, GeneratedFiles $generated): void
+    /**
+     * Without escalation the files are written straight into the directory; with sudo they are
+     * staged as the login user and installed with a single escalated command.
+     */
+    private function upload(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log, GeneratedFiles $generated, Privilege $privilege): void
     {
         $log->step($dh, 'Uploading files');
         $base = rtrim($dh->path, '/');
+        $staging = $privilege->escalates() ? Staging::open($shell) : null;
 
-        foreach ($generated->files as $name => $contents) {
-            $mode = match (true) {
-                str_starts_with($name, '.env') => 0600,
-                str_ends_with($name, '.sh') => 0755,
-                default => 0644,
-            };
-            $shell->put("{$base}/{$name}", $contents, $mode);
-            $log->info($dh, sprintf('%s (%o)', $name, $mode));
+        try {
+            $modes = [];
+            foreach ($generated->files as $name => $contents) {
+                $mode = match (true) {
+                    str_starts_with($name, '.env') => 0600,
+                    str_ends_with($name, '.sh') => 0755,
+                    default => 0644,
+                };
+                $staging !== null ? $staging->put($name, $contents, $mode) : $shell->put("{$base}/{$name}", $contents, $mode);
+                $modes[$name] = $mode;
+                $log->info($dh, sprintf('%s (%o)', $name, $mode));
+            }
+
+            if ($staging !== null) {
+                $install = RemoteSteps::installCommand($staging->dir, $dh->path, $modes);
+                $this->exec($shell, $dh, $log, $privilege->wrap($install), $privilege->stdin());
+            }
+        } finally {
+            $staging?->close();
         }
     }
 
@@ -199,7 +211,7 @@ class DeployHostPipeline
         $project = ScriptRenderer::quote('label=com.docker.compose.project='.$dh->stack_name);
 
         foreach ($removals as $removal) {
-            $this->exec($shell, $dh, $log, RemoteSteps::wrap($dh, 'rm -f '.implode(' ', array_map(ScriptRenderer::quote(...), $removal->files))));
+            $this->execIn($shell, $dh, $log, 'rm -f '.implode(' ', array_map(ScriptRenderer::quote(...), $removal->files)));
 
             // In swarm, removed services are deleted by `docker stack deploy --prune` in restart.sh.
             if ($dh->orchestrator !== Orchestrator::Compose) {
@@ -208,24 +220,51 @@ class DeployHostPipeline
 
             foreach ($removal->services as $service) {
                 $filter = ScriptRenderer::quote('label=com.docker.compose.service='.$service);
-                $this->exec($shell, $dh, $log, RemoteSteps::wrap($dh, "docker ps -aq --filter {$project} --filter {$filter} | xargs -r docker rm -f"));
+                $this->execIn($shell, $dh, $log, "docker ps -aq --filter {$project} --filter {$filter} | xargs -r docker rm -f");
             }
         }
     }
 
-    /** @param  Collection<int, Credential>  $registries */
-    private function login(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log, Collection $registries): void
+    /**
+     * The registry secret never appears on the command line: without escalation it goes on stdin;
+     * with sudo, stdin carries the sudo password, so the secret is staged in a file and redirected.
+     *
+     * @param  Collection<int, Credential>  $registries
+     */
+    private function login(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log, Collection $registries, Privilege $privilege): void
     {
-        foreach ($registries as $registry) {
-            $url = trim((string) $registry->registry_url);
-            $log->step($dh, 'Registry login '.($url !== '' ? $url : $registry->name));
-
-            $command = 'docker login'.($url !== '' ? ' '.ScriptRenderer::quote($url) : '')
-                .' -u '.ScriptRenderer::quote((string) $registry->username).' --password-stdin';
-
-            // The secret is passed only via stdin: it never appears on the command line.
-            $this->exec($shell, $dh, $log, RemoteSteps::wrap($dh, $command), (string) $registry->secret);
+        if ($registries->isEmpty()) {
+            return;
         }
+
+        $staging = $privilege->escalates() ? Staging::open($shell) : null;
+
+        try {
+            foreach ($registries as $registry) {
+                $url = trim((string) $registry->registry_url);
+                $log->step($dh, 'Registry login '.($url !== '' ? $url : $registry->name));
+
+                $command = 'docker login'.($url !== '' ? ' '.ScriptRenderer::quote($url) : '')
+                    .' -u '.ScriptRenderer::quote((string) $registry->username).' --password-stdin';
+
+                if ($staging === null) {
+                    $this->exec($shell, $dh, $log, RemoteSteps::wrap($dh, $command), (string) $registry->secret);
+
+                    continue;
+                }
+
+                $file = $staging->put('registry-'.$registry->id, (string) $registry->secret, 0600);
+                $this->execIn($shell, $dh, $log, $command.' < '.ScriptRenderer::quote($file));
+            }
+        } finally {
+            $staging?->close();
+        }
+    }
+
+    /** Runs $cmd in the deployment directory through RemoteSteps::wrap(), with the privilege stdin. */
+    private function execIn(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log, string $cmd): ExecResult
+    {
+        return $this->exec($shell, $dh, $log, RemoteSteps::wrap($dh, $cmd), RemoteSteps::stdin($dh));
     }
 
     private function exec(RemoteShell $shell, DeploymentHost $dh, DeployLogger $log, string $command, ?string $stdin = null): ExecResult

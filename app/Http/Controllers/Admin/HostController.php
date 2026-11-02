@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\CredentialType;
+use App\Enums\PrivilegeMode;
 use App\Http\Controllers\Controller;
 use App\Infrastructure\JumpChain;
 use App\Jobs\HostCheckJob;
@@ -14,6 +15,7 @@ use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -55,11 +57,13 @@ class HostController extends Controller
     {
         Gate::authorize('view', $host);
 
-        $host->load(['credential:id,name,type', 'jumpHost:id,name']);
+        $host->load(['credential:id,name,type', 'jumpHost:id,name', 'sudoCredential:id,name']);
 
         return Inertia::render('admin/hosts/Show', [
             'host' => [
-                ...$host->only(['id', 'name', 'hostname', 'port', 'username', 'sudo', 'reachable', 'facts', 'checked_at']),
+                ...$host->only(['id', 'name', 'hostname', 'port', 'username', 'reachable', 'facts', 'checked_at']),
+                'privilege_mode_label' => $host->privilege_mode->label(),
+                'sudo_credential' => $host->sudoCredential,
                 'credential' => $host->credential,
                 'jump_host' => $host->jumpHost,
                 'has_host_key' => filled($host->host_key),
@@ -73,7 +77,7 @@ class HostController extends Controller
         Gate::authorize('update', $host);
 
         return Inertia::render('admin/hosts/Form', [
-            'host' => $host->only(['id', 'name', 'hostname', 'port', 'username', 'credential_id', 'jump_host_id', 'sudo']),
+            'host' => $host->only(['id', 'name', 'hostname', 'port', 'username', 'credential_id', 'jump_host_id', 'privilege_mode', 'sudo_credential_id']),
             ...$this->options($host),
         ]);
     }
@@ -168,13 +172,20 @@ class HostController extends Controller
                     $fail($error);
                 }
             }],
-            'sudo' => ['nullable', 'string', 'max:255'],
+            'privilege_mode' => ['required', Rule::enum(PrivilegeMode::class)],
+            'sudo_credential_id' => ['nullable', 'required_if:privilege_mode,'.PrivilegeMode::SudoPassword->value, 'integer', 'exists:credentials,id', function (string $attribute, mixed $value, Closure $fail): void {
+                if (filled($value) && Credential::find($value)?->type !== CredentialType::Password) {
+                    $fail('The sudo credential must be a password credential.');
+                }
+            }],
         ], [
             'hostname.regex' => 'The hostname may only contain letters, digits, ".", "-", ":" and "_" (or an IPv6 address in square brackets).',
             'username.regex' => 'The username may only contain letters, digits, ".", "_" and "-" (not as the first character).',
         ]);
 
-        $data['sudo'] ??= '';
+        if ($data['privilege_mode'] !== PrivilegeMode::SudoPassword->value) {
+            $data['sudo_credential_id'] = null;
+        }
 
         return $data;
     }
@@ -185,6 +196,12 @@ class HostController extends Controller
     private function options(?Host $host): array
     {
         return [
+            'privilegeModes' => array_map(
+                fn (PrivilegeMode $mode): array => ['value' => $mode->value, 'label' => $mode->label()],
+                PrivilegeMode::cases(),
+            ),
+            'sudoCredentials' => Credential::where('type', CredentialType::Password->value)
+                ->orderBy('name')->get(['id', 'name']),
             'credentials' => Credential::where('type', '!=', CredentialType::Registry->value)
                 ->orderBy('name')->get(['id', 'name', 'type']),
             'jumpHosts' => Host::when($host, fn ($q) => $q->whereKeyNot($host->id))

@@ -11,7 +11,8 @@ type ShownHost = {
     hostname: string;
     port: number;
     username: string;
-    sudo: string;
+    privilege_mode_label: string;
+    sudo_credential: { id: number; name: string } | null;
     reachable: boolean | null;
     facts: Record<string, unknown> | null;
     checked_at: string | null;
@@ -80,8 +81,13 @@ defineOptions({
             <dt class="text-muted-foreground">Jump host</dt>
             <dd>{{ host.jump_host?.name ?? 'None' }}</dd>
 
-            <dt class="text-muted-foreground">Sudo prefix</dt>
-            <dd>{{ host.sudo || 'None' }}</dd>
+            <dt class="text-muted-foreground">Privileges</dt>
+            <dd>{{ host.privilege_mode_label }}</dd>
+
+            <template v-if="host.sudo_credential">
+                <dt class="text-muted-foreground">Sudo password</dt>
+                <dd>{{ host.sudo_credential.name }}</dd>
+            </template>
 
             <dt class="text-muted-foreground">Reachability</dt>
             <dd>

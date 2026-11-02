@@ -12,7 +12,7 @@ dada is an open source web app to define **projects** (e.g. `wordpress`) with **
     - A variable can be required or secret, and has a scope: `container` (goes into `.env.<slug>`), `compose` (goes into `.env`) or `host-global`.
 - **Infrastructure.**
     - Credentials: password, SSH key or registry. They are encrypted at rest and never returned in clear text.
-    - Hosts can sit behind chained jump hosts, use a sudo prefix and have health checks.
+    - Hosts can sit behind chained jump hosts, use passwordless sudo or sudo with a password and have health checks.
     - The host key is trusted on first use: it is stored at the first connection, and a later change fails the connection.
 - **Deployments.**
     - Each deployment has a team with per-deployment roles: Admin, Operator, Viewer, plus a Maintainer permission for the catalog.

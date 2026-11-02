@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import HostController from '@/actions/App/Http/Controllers/Admin/HostController';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -16,13 +16,16 @@ type AdminHost = {
     username: string;
     credential_id: number;
     jump_host_id: number | null;
-    sudo: string;
+    privilege_mode: string;
+    sudo_credential_id: number | null;
 };
 
 const props = defineProps<{
     host: AdminHost | null;
     credentials: { id: number; name: string; type: string }[];
     jumpHosts: { id: number; name: string }[];
+    privilegeModes: { value: string; label: string }[];
+    sudoCredentials: { id: number; name: string }[];
 }>();
 
 defineOptions({
@@ -42,6 +45,8 @@ const formProps = computed(() =>
         ? HostController.update.form(props.host.id)
         : HostController.store.form(),
 );
+
+const privilegeMode = ref(props.host?.privilege_mode ?? 'none');
 
 const selectClass =
     'border-input bg-background h-9 rounded-md border px-3 text-sm';
@@ -145,18 +150,44 @@ const selectClass =
             </div>
 
             <div class="grid gap-2">
-                <Label for="sudo">
-                    Sudo prefix
-                    <span class="text-muted-foreground">(optional)</span>
-                </Label>
-                <Input
-                    id="sudo"
-                    name="sudo"
-                    :default-value="host?.sudo ?? ''"
-                    placeholder="sudo"
-                    autocomplete="off"
-                />
-                <InputError :message="errors.sudo" />
+                <Label for="privilege_mode">Privileges</Label>
+                <select
+                    id="privilege_mode"
+                    name="privilege_mode"
+                    v-model="privilegeMode"
+                    :class="selectClass"
+                    required
+                >
+                    <option
+                        v-for="m in privilegeModes"
+                        :key="m.value"
+                        :value="m.value"
+                    >
+                        {{ m.label }}
+                    </option>
+                </select>
+                <InputError :message="errors.privilege_mode" />
+            </div>
+
+            <div v-if="privilegeMode === 'sudo_password'" class="grid gap-2">
+                <Label for="sudo_credential_id">Sudo password credential</Label>
+                <select
+                    id="sudo_credential_id"
+                    name="sudo_credential_id"
+                    :class="selectClass"
+                    :value="host?.sudo_credential_id ?? ''"
+                    required
+                >
+                    <option value="" disabled>Select…</option>
+                    <option
+                        v-for="c in sudoCredentials"
+                        :key="c.id"
+                        :value="c.id"
+                    >
+                        {{ c.name }}
+                    </option>
+                </select>
+                <InputError :message="errors.sudo_credential_id" />
             </div>
 
             <div class="flex items-center gap-4">

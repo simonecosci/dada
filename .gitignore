@@ -46,5 +46,6 @@ yarn-error.log
 
 .serena/
 .superpowers/
+graphify-out/
 docker-compose.override.yml
 docker-compose.yml
